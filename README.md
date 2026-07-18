@@ -86,11 +86,39 @@ scripts/                          # analysis / diagnostics one-offs used during 
 
 ## Getting started (new to AWS)
 
-If you have not used AWS before, work through this once. You need three CLI tools and
-an AWS account with permission to create the resources (IAM roles, Batch, HealthOmics,
-S3, Step Functions, CloudFormation, CodeBuild).
+If you have not used AWS before, work through this once. You need an AWS account with
+permission to create the resources (IAM roles, Batch, HealthOmics, S3, Step Functions,
+CloudFormation, CodeBuild).
 
-### 1. Install and authenticate
+### How this works (mental model)
+
+You don't "upload the pipeline" to AWS as a bundle. The files in this repo are
+**blueprints**. You run one command (`bootstrap.sh`) from a terminal that's logged into
+AWS, and it **creates the pipeline's resources inside your account**: it copies the
+required containers into your ECR, builds the alignment image in the cloud (CodeBuild),
+loads the reference genome into your S3, and deploys the CloudFormation stacks (Batch
+compute, the Step Functions pipeline, the HealthOmics workflow, IAM roles). After that
+the pipeline **lives in your AWS account** — the downloaded files were just the source.
+From then on you just upload BAMs to S3 and start runs.
+
+### Where to run the commands (pick one)
+
+- **AWS CloudShell (easiest — nothing to install):** in the AWS web console, click the
+  CloudShell icon in the top toolbar. It's a browser terminal that already has the AWS
+  CLI and `git`, and you're already logged in. Clone the repo there and run bootstrap.
+- **Your own laptop:** install AWS CLI v2, run `aws configure` (or `aws configure sso`)
+  to log in, then clone the repo and run bootstrap.
+
+### 0. Get the code
+
+```bash
+git clone https://github.com/cleewh/ont-somatic-cloud37-aws.git
+cd ont-somatic-cloud37-aws
+```
+(No `git`? On the GitHub page: green **Code** button → **Download ZIP**, then unzip and
+`cd` into the folder.) All `./production/cloud37/...` commands below run from here.
+
+### 1. Install and authenticate (skip the install if using CloudShell)
 
 ```bash
 # AWS CLI v2 — https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
