@@ -417,6 +417,55 @@ On-demand `ap-southeast-1`: c6i.8xlarge $1.568/hr + 1024 GB gp3 (1000 MiB/s, 600
 
 ---
 
+## Scaling & concurrency — how many pairs run in parallel
+
+The account-level AWS quotas are generous; the practical limits are two **self-imposed
+config caps** you can raise without any AWS support request (up to the account quotas).
+
+| Limit | Where set | Default | What it caps |
+|-------|-----------|---------|--------------|
+| Batch `MaxvCpus` | `cloud37-stack.yaml` param | **128** | Alignment parallelism. Each align job = 32 vCPU; a pair runs 3 in parallel (96 vCPU), so 128 ≈ **one pair aligning at a time**. |
+| Run group `MaxRuns` | `cloud37-prereqs.yaml` param | **8** | How many pairs are in HealthOmics variant calling at once. |
+| Run group `MaxDuration` | `cloud37-prereqs.yaml` param | 4320 (72 h) | Per-run wall-clock safety cap. |
+
+**Out of the box:** ~1 pair aligning at a time, up to 8 in variant calling — but since
+alignment feeds only ~1 pair per ~4-5 h, in practice ~1 aligning + ~1-2 calling at any
+moment → **~4-5 pairs/day** end-to-end.
+
+**To scale up (no AWS quota request needed — the account already allows it):**
+
+- Raise Batch `MaxvCpus` (e.g. `128 → 1024`) → ~10 pairs aligning in parallel. The
+  account's EC2 On-Demand vCPU quota is already ~1,152.
+- Raise run group `MaxRuns` (`8 → up to 50`) → up to ~50 pairs variant-calling at once.
+  The account's "concurrent active runs (DYNAMIC storage)" quota is 50.
+
+  ```bash
+  # Alignment compute (redeploy the app stack when the Batch queue is idle):
+  aws cloudformation deploy --template-file production/cloud37/cloud37-stack.yaml \
+    --stack-name cloud37 --capabilities CAPABILITY_IAM --region <REGION> \
+    --parameter-overrides <existing params…> MaxvCpus=1024
+
+  # Concurrent variant runs (run group):
+  aws omics update-run-group --id <run-group-id> --max-runs 50 --region <REGION>
+  ```
+
+That range comfortably pushes the full 150-pair campaign through in a few waves over a
+few days.
+
+**When you actually need an AWS service-limit (quota) increase** — only beyond the
+account quotas above:
+
+| Quota | Default (this account) | Raise if… |
+|-------|------------------------|-----------|
+| EC2 On-Demand Standard vCPUs (`ec2` / `L-1216C47A`) | ~1,152 | you want >~12 pairs aligning at once |
+| HealthOmics concurrent active runs (DYNAMIC storage) | 50 | you want >50 pairs variant-calling at once |
+| HealthOmics **tasks per run** | 25 | you want each *individual* run faster (the SNV stage has hundreds of short parallel tasks; raising this is the biggest single-run speedup lever) |
+
+Request these in the **Service Quotas** console (or via AWS support); increases are
+usually granted quickly.
+
+---
+
 ## Deploying / transferring to a new AWS account
 
 Everything is parameterized — no account-specific values are baked into the templates.
