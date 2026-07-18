@@ -1,0 +1,404 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  cloud37 B1c - EC2(Batch) align+merge -> S3 -> auto-trigger HealthOmics variant-only.
+  Step Functions orchestrates: parallel minimap2 align (on-demand Batch) -> merge (2 tumors)
+  -> omics:StartRun (variant-only) -> write manifest.json. Tumor-normal only.
+
+# TRANSFERABLE: no account-specific values are baked in. All account/region/resource
+# values are Parameters supplied at deploy time (see deploy.params.json). The customer
+# deploys this same template in their own account by editing the params file only.
+Parameters:
+  Bucket:
+    Type: String
+    Description: S3 bucket for inputs, aligned BAMs, manifest, and HealthOmics outputs (customer-owned)
+  AlignImageUri:
+    Type: String
+    Description: ECR URI of the align/merge container (minimap2+samtools+awscli) in the customer account
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for AWS Batch compute (customer VPC)
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group for AWS Batch compute (customer VPC)
+  OmicsWorkflowId:
+    Type: String
+    Description: HealthOmics workflow ID registered in the customer account
+  OmicsVariantVersionName:
+    Type: String
+    Description: HealthOmics workflow version name (aligned-input-capable variant caller, e.g. the cloud36 unified version)
+  OmicsRunRoleArn:
+    Type: String
+    Description: HealthOmics run IAM role ARN (customer account; trust omics.amazonaws.com, S3 rw + ECR pull)
+  OmicsRunGroupId:
+    Type: String
+    Description: HealthOmics run group ID (customer account)
+  MaxvCpus:
+    Type: Number
+    Default: 128
+    Description: Max vCPUs for the Batch compute environment
+  DiskSizeGb:
+    Type: Number
+    Default: 1024
+    Description: >
+      Root EBS size (GiB) for Batch instances. Genomics BAMs are large - a 60x tumor
+      uBAM is ~130GB and the merged tumor ~292GB; align/merge scratch needs headroom.
+      Default 1024 covers both align (~500GB peak) and merge (~560GB peak).
+  DiskThroughputMbps:
+    Type: Number
+    Default: 1000
+    Description: >
+      gp3 throughput (MiB/s) for the scratch volume. The samtools sort spill/merge and
+      the ~130GB S3 download/upload are throughput-bound; default gp3 is only 125 MiB/s.
+      1000 is the gp3 max and removes the I/O tail.
+  DiskIops:
+    Type: Number
+    Default: 6000
+    Description: >
+      gp3 IOPS for the scratch volume. The align/merge workload is throughput-bound
+      (sequential BAM streaming), not IOPS-bound, so 6000 is ample; max 16000 was
+      wasteful. Throughput is kept high (DiskThroughputMbps) as that is the real lever.
+
+Resources:
+
+  # ---------------- IAM ----------------
+  BatchServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: batch.amazonaws.com}, Action: sts:AssumeRole}]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole]
+
+  EcsInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: ec2.amazonaws.com}, Action: sts:AssumeRole}]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role]
+      Policies:
+        - PolicyName: s3-rw
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:AbortMultipartUpload]
+                Resource: !Sub arn:aws:s3:::${Bucket}/*
+              - Effect: Allow
+                Action: [s3:ListBucket]
+                Resource: !Sub arn:aws:s3:::${Bucket}
+
+  EcsInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref EcsInstanceRole]
+
+  # Container job role (ECS task role) - assumed by the running container, NOT the EC2 host.
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: ecs-tasks.amazonaws.com}, Action: sts:AssumeRole}]
+      Policies:
+        - PolicyName: s3-rw
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:AbortMultipartUpload]
+                Resource: !Sub arn:aws:s3:::${Bucket}/*
+              - Effect: Allow
+                Action: [s3:ListBucket]
+                Resource: !Sub arn:aws:s3:::${Bucket}
+
+  # ---------------- Batch ----------------
+  # Large root volume so the align/merge scratch (/scratch on the host root) fits the
+  # multi-hundred-GB genomics BAMs. The AL2023 ECS AMI auto-grows the root fs on boot.
+  BatchLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: !Ref DiskSizeGb
+              VolumeType: gp3
+              Throughput: !Ref DiskThroughputMbps
+              Iops: !Ref DiskIops
+              DeleteOnTermination: true
+
+  ComputeEnvironment:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      State: ENABLED
+      ComputeResources:
+        Type: EC2                     # on-demand (NOT spot), per requirement
+        MinvCpus: 0
+        MaxvCpus: !Ref MaxvCpus
+        DesiredvCpus: 0
+        InstanceTypes: [c6i.8xlarge, c6i.12xlarge]   # 32-48 vCPU: more minimap2 threads + higher EBS/network bandwidth
+        Subnets: !Ref Subnets
+        SecurityGroupIds: [!Ref SecurityGroup]
+        InstanceRole: !GetAtt EcsInstanceProfile.Arn
+        LaunchTemplate:
+          LaunchTemplateId: !Ref BatchLaunchTemplate
+          Version: !GetAtt BatchLaunchTemplate.LatestVersionNumber
+      ServiceRole: !GetAtt BatchServiceRole.Arn
+
+  JobQueue:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      State: ENABLED
+      Priority: 1
+      ComputeEnvironmentOrder: [{Order: 1, ComputeEnvironment: !Ref ComputeEnvironment}]
+
+  AlignJobDef:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      ContainerProperties:
+        Image: !Ref AlignImageUri
+        Vcpus: 32                      # c6i.8xlarge: 24 map + 6 sort + 2 bam2fq threads
+        Memory: 60000
+        Command: ["/opt/align_job.sh"]
+        JobRoleArn: !GetAtt TaskRole.Arn
+        Environment:
+          - { Name: MAP_THREADS,    Value: "24" }
+          - { Name: SORT_THREADS,   Value: "6" }
+          - { Name: BAM2FQ_THREADS, Value: "2" }
+        Volumes: [{Host: {SourcePath: /scratch}, Name: scratch}]
+        MountPoints: [{ContainerPath: /scratch, SourceVolume: scratch}]
+      RetryStrategy: {Attempts: 2}
+      Timeout: {AttemptDurationSeconds: 43200}
+
+  MergeJobDef:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      ContainerProperties:
+        Image: !Ref AlignImageUri
+        Vcpus: 16                      # merge is I/O-bound; threads help compression, disk throughput does the rest
+        Memory: 32000
+        Command: ["/opt/merge_job.sh"]
+        JobRoleArn: !GetAtt TaskRole.Arn
+        Environment:
+          - { Name: THREADS, Value: "16" }
+        Volumes: [{Host: {SourcePath: /scratch}, Name: scratch}]
+        MountPoints: [{ContainerPath: /scratch, SourceVolume: scratch}]
+      RetryStrategy: {Attempts: 2}
+      Timeout: {AttemptDurationSeconds: 21600}
+
+  # ---------------- Manifest Lambda ----------------
+  ManifestLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: lambda.amazonaws.com}, Action: sts:AssumeRole}]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole]
+      Policies:
+        - PolicyName: s3-put-manifest
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: [s3:PutObject], Resource: !Sub 'arn:aws:s3:::${Bucket}/*'}
+
+  ManifestLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt ManifestLambdaRole.Arn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import json, datetime, urllib.parse, boto3
+          s3 = boto3.client("s3")
+          def handler(event, context):
+              prefix = event["output_prefix"].rstrip("/") + "/"
+              p = urllib.parse.urlparse(prefix)
+              bucket, key = p.netloc, p.path.lstrip("/") + "manifest.json"
+              m = {"schema":"cloud37-b1c/1","sample_name":event["sample_name"],
+                   "created_utc":datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                   "source_inputs":event.get("sources",{}),"aligned_bams":event.get("aligned",{}),
+                   "healthomics":{"run_id":event.get("healthomics_run_id"),
+                                  "run_output_uri":event.get("healthomics_run_output_uri")}}
+              s3.put_object(Bucket=bucket, Key=key, Body=json.dumps(m, indent=2).encode(),
+                            ContentType="application/json")
+              return {"manifest_uri": f"s3://{bucket}/{key}"}
+
+  # ---------------- Step Functions ----------------
+  StatesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: states.amazonaws.com}, Action: sts:AssumeRole}]
+      Policies:
+        - PolicyName: sfn-orchestration
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - {Effect: Allow, Action: [batch:SubmitJob, batch:DescribeJobs, batch:TerminateJob], Resource: '*'}
+              - Effect: Allow
+                Action: [events:PutTargets, events:PutRule, events:DescribeRule]
+                Resource: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/StepFunctionsGetEventsForBatchJobsRule
+              - {Effect: Allow, Action: [lambda:InvokeFunction], Resource: !GetAtt ManifestLambda.Arn}
+              - {Effect: Allow, Action: [omics:StartRun, omics:GetRun, omics:TagResource], Resource: '*'}
+              - {Effect: Allow, Action: [iam:PassRole], Resource: !Ref OmicsRunRoleArn}
+
+  StateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: cloud37-align-then-variant
+      RoleArn: !GetAtt StatesRole.Arn
+      DefinitionSubstitutions:
+        AlignQ: !Ref JobQueue
+        AlignDef: !Ref AlignJobDef
+        MergeDef: !Ref MergeJobDef
+        AlignImage: !Ref AlignImageUri
+        ManifestFn: !GetAtt ManifestLambda.Arn
+        WfId: !Ref OmicsWorkflowId
+        WfVer: !Ref OmicsVariantVersionName
+        RunRole: !Ref OmicsRunRoleArn
+        RunGroup: !Ref OmicsRunGroupId
+      DefinitionString: |
+        {
+          "Comment": "cloud37 B1c: align+merge on Batch -> HealthOmics variant-only",
+          "StartAt": "TwoTumors?",
+          "States": {
+            "TwoTumors?": {
+              "Type": "Choice",
+              "Choices": [{"Variable": "$.bam_tumor2", "IsPresent": true, "Next": "AlignTwoTumors"}],
+              "Default": "AlignOneTumor"
+            },
+
+            "AlignTwoTumors": {
+              "Type": "Parallel",
+              "Next": "MergeTumors",
+              "Branches": [
+                {"StartAt": "AlnT1", "States": {"AlnT1": {"Type": "Task",
+                  "Resource": "arn:aws:states:::batch:submitJob.sync",
+                  "Parameters": {"JobName": "aln-t1", "JobQueue": "${AlignQ}", "JobDefinition": "${AlignDef}",
+                    "ContainerOverrides": {"Environment": [
+                      {"Name":"IN_BAM","Value.$":"$.bam_tumor"},
+                      {"Name":"OUT_BAM","Value.$":"States.Format('{}aligned_bams/tumor1_aligned.bam', $.output_prefix)"},
+                      {"Name":"REF","Value.$":"$.ref"}]}},
+                  "End": true}}},
+                {"StartAt": "AlnT2", "States": {"AlnT2": {"Type": "Task",
+                  "Resource": "arn:aws:states:::batch:submitJob.sync",
+                  "Parameters": {"JobName": "aln-t2", "JobQueue": "${AlignQ}", "JobDefinition": "${AlignDef}",
+                    "ContainerOverrides": {"Environment": [
+                      {"Name":"IN_BAM","Value.$":"$.bam_tumor2"},
+                      {"Name":"OUT_BAM","Value.$":"States.Format('{}aligned_bams/tumor2_aligned.bam', $.output_prefix)"},
+                      {"Name":"REF","Value.$":"$.ref"}]}},
+                  "End": true}}},
+                {"StartAt": "AlnN", "States": {"AlnN": {"Type": "Task",
+                  "Resource": "arn:aws:states:::batch:submitJob.sync",
+                  "Parameters": {"JobName": "aln-normal", "JobQueue": "${AlignQ}", "JobDefinition": "${AlignDef}",
+                    "ContainerOverrides": {"Environment": [
+                      {"Name":"IN_BAM","Value.$":"$.bam_normal"},
+                      {"Name":"OUT_BAM","Value.$":"States.Format('{}aligned_bams/normal_aligned.bam', $.output_prefix)"},
+                      {"Name":"REF","Value.$":"$.ref"}]}},
+                  "End": true}}}
+              ],
+              "ResultPath": "$.alignResult"
+            },
+
+            "MergeTumors": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::batch:submitJob.sync",
+              "Parameters": {"JobName": "merge-tumors", "JobQueue": "${AlignQ}", "JobDefinition": "${MergeDef}",
+                "ContainerOverrides": {"Environment": [
+                  {"Name":"T1_BAM","Value.$":"States.Format('{}aligned_bams/tumor1_aligned.bam', $.output_prefix)"},
+                  {"Name":"T2_BAM","Value.$":"States.Format('{}aligned_bams/tumor2_aligned.bam', $.output_prefix)"},
+                  {"Name":"OUT_BAM","Value.$":"States.Format('{}aligned_bams/tumor_aligned.bam', $.output_prefix)"},
+                  {"Name":"SAMPLE","Value.$":"$.sample_name"}]}},
+              "ResultPath": "$.mergeResult",
+              "Next": "StartVariantRun"
+            },
+
+            "AlignOneTumor": {
+              "Type": "Parallel",
+              "Next": "StartVariantRun",
+              "Branches": [
+                {"StartAt": "AlnT1only", "States": {"AlnT1only": {"Type": "Task",
+                  "Resource": "arn:aws:states:::batch:submitJob.sync",
+                  "Parameters": {"JobName": "aln-t1", "JobQueue": "${AlignQ}", "JobDefinition": "${AlignDef}",
+                    "ContainerOverrides": {"Environment": [
+                      {"Name":"IN_BAM","Value.$":"$.bam_tumor"},
+                      {"Name":"OUT_BAM","Value.$":"States.Format('{}aligned_bams/tumor_aligned.bam', $.output_prefix)"},
+                      {"Name":"REF","Value.$":"$.ref"}]}},
+                  "End": true}}},
+                {"StartAt": "AlnNonly", "States": {"AlnNonly": {"Type": "Task",
+                  "Resource": "arn:aws:states:::batch:submitJob.sync",
+                  "Parameters": {"JobName": "aln-normal", "JobQueue": "${AlignQ}", "JobDefinition": "${AlignDef}",
+                    "ContainerOverrides": {"Environment": [
+                      {"Name":"IN_BAM","Value.$":"$.bam_normal"},
+                      {"Name":"OUT_BAM","Value.$":"States.Format('{}aligned_bams/normal_aligned.bam', $.output_prefix)"},
+                      {"Name":"REF","Value.$":"$.ref"}]}},
+                  "End": true}}}
+              ],
+              "ResultPath": "$.alignResult"
+            },
+
+            "StartVariantRun": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:omics:startRun",
+              "Parameters": {
+                "RequestId.$": "States.UUID()",
+                "WorkflowId": "${WfId}",
+                "WorkflowVersionName": "${WfVer}",
+                "RoleArn": "${RunRole}",
+                "RunGroupId": "${RunGroup}",
+                "StorageType": "DYNAMIC",
+                "Name.$": "States.Format('cloud37-{}-variant', $.sample_name)",
+                "OutputUri.$": "$.output_prefix",
+                "Parameters": {
+                  "bam_tumor.$": "States.Format('{}aligned_bams/tumor_aligned.bam', $.output_prefix)",
+                  "bam_normal.$": "States.Format('{}aligned_bams/normal_aligned.bam', $.output_prefix)",
+                  "ref.$": "$.ref",
+                  "sample_name.$": "$.sample_name",
+                  "override_basecaller_cfg.$": "$.override_basecaller_cfg",
+                  "snv": true, "sv": true, "mod": true, "annotation": true, "diff_mod": true
+                }
+              },
+              "ResultPath": "$.omics",
+              "Next": "DeriveRunOutputUri"
+            },
+
+            "DeriveRunOutputUri": {
+              "Type": "Pass",
+              "Parameters": {"uri.$": "States.Format('{}{}', $.output_prefix, $.omics.Id)"},
+              "ResultPath": "$.runOut",
+              "Next": "WriteManifest"
+            },
+
+            "WriteManifest": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${ManifestFn}",
+                "Payload": {
+                  "output_prefix.$": "$.output_prefix",
+                  "sample_name.$": "$.sample_name",
+                  "sources": {"bam_tumor.$": "$.bam_tumor", "bam_normal.$": "$.bam_normal"},
+                  "aligned": {
+                    "tumor.$": "States.Format('{}aligned_bams/tumor_aligned.bam', $.output_prefix)",
+                    "normal.$": "States.Format('{}aligned_bams/normal_aligned.bam', $.output_prefix)"},
+                  "healthomics_run_id.$": "$.omics.Id",
+                  "healthomics_run_output_uri.$": "$.runOut.uri"
+                }
+              },
+              "End": true
+            }
+          }
+        }
+
+Outputs:
+  StateMachineArn:
+    Value: !Ref StateMachine
+  JobQueueName:
+    Value: !Ref JobQueue

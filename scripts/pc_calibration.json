@@ -1,0 +1,9 @@
+{
+  "run": "9960545",
+  "p_deeprange": 2.611,
+  "p_r2": 0.885,
+  "c_cand_per_depth_p": 1.1974693028393243e-11,
+  "cap": 2000,
+  "budget_cloud25": 3000000000,
+  "n_fit_shards": 314
+}

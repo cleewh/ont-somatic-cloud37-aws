@@ -1,0 +1,199 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  cloud37 prerequisites - account-side setup for the align-on-EC2 -> HealthOmics
+  variant-only pipeline. Creates (1) the HealthOmics run IAM role, (2) the run group
+  safety cap, and (3) the aligned-input-capable variant-caller workflow + named version
+  (with container registry map). Outputs feed straight into cloud37-stack.yaml parameters.
+  TRANSFERABLE: no account-specific values are baked in.
+
+Parameters:
+  Bucket:
+    Type: String
+    Description: Customer-owned S3 bucket for inputs, aligned BAMs, outputs, run-cache, analysis.
+  WorkflowDefinitionUri:
+    Type: String
+    Description: S3 URI of the cloud36 unified workflow definition ZIP (uploaded by bootstrap.sh).
+  EcrRepositoryPrefix:
+    Type: String
+    Default: docker-hub
+    Description: ECR repository prefix that mirrors the ontresearch/* containers (registry map target).
+  UpstreamRegistryUrl:
+    Type: String
+    Default: registry-1.docker.io
+    Description: Upstream registry the ECR prefix mirrors (Docker Hub).
+  VariantVersionName:
+    Type: String
+    Default: cloud37-variant
+    Description: HealthOmics workflow version name the app stack starts runs against.
+  RunGroupName:
+    Type: String
+    Default: cloud37-run-group
+    Description: HealthOmics run group name.
+  MaxDurationMinutes:
+    Type: Number
+    Default: 4320
+    Description: Run group hard wall-clock cap in minutes (default 72h).
+  MaxRuns:
+    Type: Number
+    Default: 8
+    Description: Run group max concurrent runs.
+
+Resources:
+
+  # ---------------- HealthOmics run IAM role ----------------
+  OmicsRunRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: omics.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: omics-run-s3-ecr-logs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: S3ReadInputs
+                Effect: Allow
+                Action: [s3:GetObject, s3:GetObjectVersion]
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${Bucket}/inputs/*
+                  - !Sub arn:${AWS::Partition}:s3:::${Bucket}/workflow-artifacts/*
+                  - !Sub arn:${AWS::Partition}:s3:::${Bucket}/run-cache/*
+                  - !Sub arn:${AWS::Partition}:s3:::${Bucket}/outputs/*
+              - Sid: S3WriteOutputs
+                Effect: Allow
+                Action: [s3:PutObject, s3:AbortMultipartUpload]
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${Bucket}/outputs/*
+                  - !Sub arn:${AWS::Partition}:s3:::${Bucket}/analysis/*
+                  - !Sub arn:${AWS::Partition}:s3:::${Bucket}/run-cache/*
+              - Sid: S3ListBucket
+                Effect: Allow
+                Action: [s3:ListBucket, s3:GetBucketLocation]
+                Resource: !Sub arn:${AWS::Partition}:s3:::${Bucket}
+                Condition:
+                  StringLike:
+                    s3:prefix: [inputs/*, workflow-artifacts/*, outputs/*, analysis/*, run-cache/*]
+              - Sid: ECRPull
+                Effect: Allow
+                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
+                Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${EcrRepositoryPrefix}/*
+              - Sid: ECRAuthToken
+                Effect: Allow
+                Action: [ecr:GetAuthorizationToken]
+                Resource: '*'
+              - Sid: CloudWatchLogsWrite
+                Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents, logs:CreateLogGroup, logs:DescribeLogStreams]
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/omics/*
+
+  # ---------------- Run group (safety cap) ----------------
+  RunGroup:
+    Type: AWS::Omics::RunGroup
+    Properties:
+      Name: !Ref RunGroupName
+      MaxDuration: !Ref MaxDurationMinutes
+      MaxRuns: !Ref MaxRuns
+      Tags:
+        pipeline: cloud37
+
+  # ---------------- Variant-caller workflow + named version ----------------
+  VariantWorkflow:
+    Type: AWS::Omics::Workflow
+    Properties:
+      Name: cloud37-variant-caller
+      Engine: NEXTFLOW
+      Main: main.nf
+      DefinitionUri: !Ref WorkflowDefinitionUri
+      ContainerRegistryMap:
+        RegistryMappings:
+          - UpstreamRegistryUrl: !Ref UpstreamRegistryUrl
+            EcrRepositoryPrefix: !Ref EcrRepositoryPrefix
+            EcrAccountId: !Ref AWS::AccountId
+      ParameterTemplate:
+        sample_name:
+          Description: Sample label emitted in output filenames.
+        ref:
+          Description: S3 URI to reference FASTA (chr-prefixed GRCh38 no-alt).
+        bam_tumor:
+          Description: S3 URI to the aligned (merged) tumor BAM produced by the EC2 align step.
+        bam_normal:
+          Description: S3 URI to the aligned normal BAM produced by the EC2 align step.
+        override_basecaller_cfg:
+          Description: Basecaller model identifier, e.g. dna_r10.4.1_e8.2_400bps_sup@v4.2.0.
+        snv:
+          Description: Enable SNV calling (ClairS). Boolean.
+          Optional: true
+        sv:
+          Description: Enable SV calling (Severus). Boolean.
+          Optional: true
+        mod:
+          Description: Enable methylation calling (modkit). Boolean.
+          Optional: true
+        diff_mod:
+          Description: Enable differential methylation (DSS). Boolean.
+          Optional: true
+        annotation:
+          Description: Enable snpEff annotation. Boolean.
+          Optional: true
+      Tags:
+        pipeline: cloud37
+
+  VariantVersion:
+    Type: AWS::Omics::WorkflowVersion
+    Properties:
+      WorkflowId: !Ref VariantWorkflow
+      VersionName: !Ref VariantVersionName
+      Engine: NEXTFLOW
+      Main: main.nf
+      DefinitionUri: !Ref WorkflowDefinitionUri
+      ContainerRegistryMap:
+        RegistryMappings:
+          - UpstreamRegistryUrl: !Ref UpstreamRegistryUrl
+            EcrRepositoryPrefix: !Ref EcrRepositoryPrefix
+            EcrAccountId: !Ref AWS::AccountId
+      ParameterTemplate:
+        sample_name:
+          Description: Sample label emitted in output filenames.
+        ref:
+          Description: S3 URI to reference FASTA (chr-prefixed GRCh38 no-alt).
+        bam_tumor:
+          Description: S3 URI to the aligned (merged) tumor BAM produced by the EC2 align step.
+        bam_normal:
+          Description: S3 URI to the aligned normal BAM produced by the EC2 align step.
+        override_basecaller_cfg:
+          Description: Basecaller model identifier, e.g. dna_r10.4.1_e8.2_400bps_sup@v4.2.0.
+        snv:
+          Description: Enable SNV calling (ClairS). Boolean.
+          Optional: true
+        sv:
+          Description: Enable SV calling (Severus). Boolean.
+          Optional: true
+        mod:
+          Description: Enable methylation calling (modkit). Boolean.
+          Optional: true
+        diff_mod:
+          Description: Enable differential methylation (DSS). Boolean.
+          Optional: true
+        annotation:
+          Description: Enable snpEff annotation. Boolean.
+          Optional: true
+      Tags:
+        pipeline: cloud37
+
+Outputs:
+  OmicsRunRoleArn:
+    Description: Pass to cloud37-stack.yaml OmicsRunRoleArn.
+    Value: !GetAtt OmicsRunRole.Arn
+  OmicsRunGroupId:
+    Description: Pass to cloud37-stack.yaml OmicsRunGroupId.
+    Value: !GetAtt RunGroup.Id
+  OmicsWorkflowId:
+    Description: Pass to cloud37-stack.yaml OmicsWorkflowId.
+    Value: !Ref VariantWorkflow
+  OmicsVariantVersionName:
+    Description: Pass to cloud37-stack.yaml OmicsVariantVersionName.
+    Value: !Ref VariantVersionName

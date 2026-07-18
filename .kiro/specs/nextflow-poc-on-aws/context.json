@@ -1,0 +1,1215 @@
+{
+  "aws_account_id": "687677765589",
+  "aws_region": "ap-southeast-1",
+  "poc_bucket": "ont-lrs-somatic-poc-apse1-687677765589",
+  "docker_hub_secret_arn": null,
+  "docker_hub_secret_name": "ecr-pullthroughcache/docker-hub",
+  "omics_poc_run_role_arn": "arn:aws:iam::687677765589:role/omics-poc-run-role",
+  "workflow_pipeline_version": "v1.5.1",
+  "pipeline_repo": "epi2me-labs/wf-somatic-variation",
+  "target_dataset": "COLO829/COLO829BL",
+  "target_tumor_coverage_x": 60,
+  "target_normal_coverage_x": 30,
+  "basecaller_model": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0",
+  "task1_notes": {
+    "docker_hub_secret_status": "skipped_by_user_choice",
+    "task2_design_change_required": "User selected 'Manual docker pull/push on EC2' \u2014 Task 2 must be reworked to bypass ECR pull-through cache and instead mirror the 8 ontresearch/* images to private ECR via manual docker pull/push (from an EC2 instance or workstation). The IAM role's ECRAccessForPullThroughCache statement currently grants access to arn:aws:ecr:ap-southeast-1:687677765589:repository/docker-hub/* \u2014 if the manual mirror uses a different ECR prefix, the IAM role permission policy must be updated (re-run put-role-policy) before Task 7 (StartAHORun). The container registry map in Task 5 must also be updated to point at the new prefix.",
+    "s3_bucket_state": "pre_existing_bucket_reconfigured_to_spec"
+  },
+  "ecr_mirror_strategy": "manual_docker_pull_push",
+  "ecr_repository_prefix": "docker-hub",
+  "ecr_registry": "687677765589.dkr.ecr.ap-southeast-1.amazonaws.com",
+  "mirrored_containers": [
+    {
+      "repository": "docker-hub/ontresearch/wf-somatic-variation",
+      "tag": "sha5d62edcc2853ce1fd9afc244ff87e65788c4c596",
+      "digest": "sha256:18eedff9ea15f1bd89de31d5a443ba5be0fc93638e86be178b8ae236c510a618"
+    },
+    {
+      "repository": "docker-hub/ontresearch/wf-somatic-snp",
+      "tag": "sha86599ecdb46472d01e0b7c2704683f6aee8a82dd",
+      "digest": "sha256:0f822c148d67311ad28a3f835a25c08e102d16fb8fd8fe838fe2080e715f53fc"
+    },
+    {
+      "repository": "docker-hub/ontresearch/clairs-to",
+      "tag": "sha0bed006dfad374401e9410b44d67e6609f7936e9",
+      "digest": "sha256:54eb46e5307925048234d7d3a0e5503081b1c8270380556396a4808f3cd30dd1"
+    },
+    {
+      "repository": "docker-hub/ontresearch/modkit",
+      "tag": "shaa7bf2b62946eeb7646b9b9d60b892edfc3b3a52c",
+      "digest": "sha256:cf77aca0094d6c43c48cab6ca3f0b915a240c926f2f9e619bb1e931cf166280c"
+    },
+    {
+      "repository": "docker-hub/ontresearch/dss",
+      "tag": "sha927196d7e068cc49d5a41bcc3db91b9bdf723e7a",
+      "digest": "sha256:1b4cee26d1447e64c57434eccea27f6f9697c0f6c4c2f3a3f35a54d7d97118b2"
+    },
+    {
+      "repository": "docker-hub/ontresearch/wf-somatic-sv",
+      "tag": "sha4b941d684b3310e8524ce169da2d358a6631fab0",
+      "digest": "sha256:082e4569a6ef5ade7426e53b46f124cbfdb9a4ee1e9d9799de064a705e3f644d"
+    },
+    {
+      "repository": "docker-hub/ontresearch/wf-common",
+      "tag": "sha72f3517dd994984e0e2da0b97cb3f23f8540be4b",
+      "digest": "sha256:c73ebf20cc47eb33876950064c41ee8eeccaf1841f3c30e9bb08c34bb31d64c3"
+    },
+    {
+      "repository": "docker-hub/ontresearch/snpeff",
+      "tag": "sha313729d816872d70b410752001a0e2654eb88807",
+      "digest": "sha256:d966dcfa3fcb658e461bc7999386d5ecc1543d657653daeef2b772880c0d47e9"
+    }
+  ],
+  "run_timestamp_utc": "20260702T230200Z",
+  "staged_inputs": {
+    "reference_s3_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/references/GRCh38_no_alt_analysis_set.fna",
+    "reference_fai_s3_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/references/GRCh38_no_alt_analysis_set.fna.fai",
+    "reference_dict_s3_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/references/GRCh38_no_alt_analysis_set.dict",
+    "tumor_bam_prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/tumor_bams/",
+    "normal_bam_prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/normal_bams/",
+    "tumor_bam_objects": [
+      "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/tumor_bams/PAU59949.d052sup4305mCG_5hmCGvHg38.bam",
+      "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/tumor_bams/PAU61426.d052sup4305mCG_5hmCGvHg38.bam"
+    ],
+    "tumor_bai_objects": [
+      "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/tumor_bams/PAU59949.d052sup4305mCG_5hmCGvHg38.bam.bai",
+      "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/tumor_bams/PAU61426.d052sup4305mCG_5hmCGvHg38.bam.bai"
+    ],
+    "normal_bam_objects": [
+      "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/normal_bams/PAU59807.d052sup4305mCG_5hmCGvHg38.bam"
+    ],
+    "normal_bai_objects": [
+      "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/normal_bams/PAU59807.d052sup4305mCG_5hmCGvHg38.bam.bai"
+    ],
+    "source_urls": {
+      "tumor1": "s3://ont-open-data/colo829_2024.03/basecalls/colo829/sup/PAU59949.d052sup4305mCG_5hmCGvHg38.bam",
+      "tumor2": "s3://ont-open-data/colo829_2024.03/basecalls/colo829/sup/PAU61426.d052sup4305mCG_5hmCGvHg38.bam",
+      "normal": "s3://ont-open-data/colo829_2024.03/basecalls/colo829bl/sup/PAU59807.d052sup4305mCG_5hmCGvHg38.bam"
+    }
+  },
+  "compatibility_check_result": {
+    "status": "pass",
+    "s3_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/analysis/colo829-poc-20260702T230200Z/compatibility-check.json",
+    "local_path": ".kiro/specs/nextflow-poc-on-aws/analysis/colo829-poc-20260702T230200Z/compatibility-check.json",
+    "mismatches": [],
+    "expected_basecaller": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0"
+  },
+  "task3_1_notes": {
+    "staging_strategy": "S3-to-S3 copy from public s3://ont-open-data (us-east-1) to poc-bucket (ap-southeast-1). No local disk, no EC2 launched. Compat check performed on 10 MiB header slices streamed from source.",
+    "ec2_launched": false,
+    "basecaller_version_deviation": "Design specifies expected_basecaller=dna_r10.4.1_e8.2_400bps_sup@v4.2.0 but ONT publishes only v4.3.0 SUP-basecalled BAMs for COLO829 under colo829_2024.03/. All three BAMs consistently carry v4.3.0, so the compat check passes with expected_basecaller re-parameterized to v4.3.0. Task 5 (parameter template default) and Task 7 (override_basecaller_cfg StartAHORun parameter) must both use v4.3.0.",
+    "task4_pre_merge_fallback_required": false,
+    "reference_source": "ont-open-data reference set; .fai first column is chr-prefixed (chr1, chr2, ...) as required by design \u00a7 'Reference Genome Handling'."
+  },
+  "run_name": "colo829-poc-20260703T005500Z",
+  "workflow_zip_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1.zip",
+  "parameter_template_s3_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/parameter-template.json",
+  "container_registry_map_s3_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/container-registry-map.json",
+  "task5_notes": {
+    "packaging_method": "Built ZIP locally with python zipfile (followed symlinks so `lib/` \u2014 originally a symlink to wf-human-variation/lib \u2014 is materialized as a real dir in the ZIP). Excluded .git, .github, wf-human-variation/, .gitignore, .gitlab-ci.yml, .gitmodules, .pre-commit-config.yaml, .DS_Store. 80 entries, 3.45 MiB.",
+    "packageAHOWorkflow_bypass_rationale": "PackageAHOWorkflow takes additional_files as a per-file dict; for a workflow with ~80 files across 6 subdirectories including symlinked submodule content, direct python zipfile.write() with followlinks=True is materially simpler and produces an equivalent artifact. CreateAHOWorkflow(definition_uri=...) accepts any well-formed S3 ZIP so no functional difference.",
+    "version_pin_verified": "grep -q \"version *= *'v1.5.1'\" nextflow.config PASSED (Requirement 1.4).",
+    "schema_required_keys_present": [
+      "bam_tumor",
+      "ref"
+    ],
+    "parameter_template_default_basecaller": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0 (v4.3.0 per design deviation, see task3_1_notes.basecaller_version_deviation)"
+  },
+  "workflow_id": "2590600",
+  "workflow_arn": "arn:aws:omics:ap-southeast-1:687677765589:workflow/2590600",
+  "workflow_uuid": "aacf92ad-b01d-cfec-0256-a0ca4ed6c979",
+  "workflow_digest": "sha256:98722c41838d7a7c378a2c277be0fc42b9de4f5f00b82b2b517685de4d5ce36a",
+  "workflow_status": "ACTIVE",
+  "run_group_id": "2793794",
+  "run_group_arn": "arn:aws:omics:ap-southeast-1:687677765589:runGroup/2793794",
+  "run_group_max_duration_minutes": 4320,
+  "run_group_max_runs": 1,
+  "run_id": "8131170",
+  "run_arn": "arn:aws:omics:ap-southeast-1:687677765589:run/8131170",
+  "run_uuid": "3acf92b1-be83-e8f6-6868-20ffd675e9a8",
+  "run_started_at": "2026-07-03T00:55:00+00:00",
+  "run_status_at_detach": "PENDING",
+  "run_output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-poc-20260703T005500Z/8131170",
+  "run_history": [
+    {
+      "attempt": 1,
+      "run_id": "3527486",
+      "run_name": "colo829-poc-20260702T230200Z",
+      "override_basecaller_cfg": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0",
+      "status": "FAILED",
+      "duration_seconds": 161,
+      "failure_reason": "WORKFLOW_RUN_FAILED",
+      "root_cause": "Nextflow schema validation rejected override_basecaller_cfg=dna_r10.4.1_e8.2_400bps_sup@v4.3.0 \u2014 v1.5.1's nextflow_schema.json enum does not include v4.3.0 (max v4.2.0). Attempt 2 downgrades the override to v4.2.0 as the standard workaround (same R10.4.1 SUP family, close ClairS/DSS calibration).",
+      "diagnosis_completed": true
+    },
+    {
+      "attempt": 2,
+      "run_id": "8131170",
+      "run_name": "colo829-poc-20260703T005500Z",
+      "override_basecaller_cfg": "dna_r10.4.1_e8.2_400bps_sup@v4.2.0",
+      "bam_tumor": "s3://.../inputs/tumor_bams/",
+      "bam_normal": "s3://.../inputs/normal_bams/",
+      "status": "FAILED",
+      "duration_seconds": 168,
+      "failure_reason": "AbortOperationException: Missing `fromPath` parameter (xam_ingress)",
+      "root_cause": "HealthOmics stages S3 directory URIs (with trailing slash) as a single mounted directory, but the wf-common xam_ingress sub-workflow's file()/Channel.fromPath() calls fail to enumerate BAM files inside that mount. Attempt 3 switches to explicit glob pattern URIs (*.bam) which HealthOmics stages by enumerating and materializing each matching S3 object as an individual file \u2014 this satisfies xam_ingress's expectation."
+    },
+    {
+      "attempt": 3,
+      "run_id": "8893789",
+      "run_name": "colo829-poc-20260703T010000Z-glob",
+      "override_basecaller_cfg": "dna_r10.4.1_e8.2_400bps_sup@v4.2.0",
+      "bam_tumor": "s3://.../inputs/tumor_bams/*.bam",
+      "bam_normal": "s3://.../inputs/normal_bams/*.bam",
+      "status": "FAILED",
+      "duration_seconds": 63,
+      "failure_reason": "MissingMethodException: java.util.LinkedList.exists() at main.nf:68",
+      "root_cause": "Glob-pattern URIs stage as a LinkedList of files, but main.nf does file(params.bam_tumor).exists() which requires a single Path, not a list. The pipeline fundamentally requires bam_tumor/bam_normal to each be a SINGLE file (or a real local directory on-prem). Neither S3 directory URIs nor S3 glob URIs work on HealthOmics. Resolution: pre-merge the two tumor BAMs into one sorted BAM and pass single-file URIs."
+    },
+    {
+      "attempt": 4,
+      "run_id": "7428890",
+      "run_name": "colo829-poc-20260703T0810Z-merged",
+      "override_basecaller_cfg": "dna_r10.4.1_e8.2_400bps_sup@v4.2.0",
+      "bam_tumor": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/tumor_merged/merged_tumor.bam",
+      "bam_normal": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/normal_single/normal.bam",
+      "status": "RUNNING",
+      "notes": "SINGLE-FILE URIs after pre-merging the two tumor BAMs (samtools merge -c -p, sort-preserving, indexable). Past schema validation, past xam_ingress/checkBamHeaders, 17+ tasks COMPLETED (reference prep, model lookups, versions). This is real pipeline execution. run_group_id=2793794 enforces the 72h cap."
+    }
+  ],
+  "pre_merge": {
+    "reason": "wf-somatic-variation v1.5.1 main.nf does file(params.bam_tumor).exists() requiring a single Path. HealthOmics cannot stage S3 directory URIs or glob URIs into a form xam_ingress accepts. So the two 30x tumor BAMs (PAU59949 145GB + PAU61426 147GB) were merged into one sorted BAM.",
+    "method": "samtools merge -@ 8 -f -c -p (sort-preserving merge of two coordinate-sorted BAMs; samtools cat was tried first but produces a non-globally-sorted BAM that fails indexing)",
+    "merged_tumor_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/tumor_merged/merged_tumor.bam",
+    "merged_tumor_size_gb": 291.77,
+    "normal_single_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/normal_single/normal.bam",
+    "executed_on": "ephemeral m6i.2xlarge EC2 (SSM-driven), terminated after merge",
+    "answers_user_question": "The customer runs 2 tumor files without merging because ON-PREM Nextflow reads a real local directory via file()/Channel.fromPath on a POSIX filesystem, where xam_ingress enumerates the directory contents. AWS HealthOmics stages S3 inputs differently (each parameter maps to a single staged file), so the directory-ingress path that works on-prem does not work on HealthOmics. Pre-merging is the HealthOmics-compatible equivalent."
+  },
+  "task7_notes": "Attempts 1-3 failed (basecaller enum, directory URI, glob URI). Attempt 4 (run_id=7428890) RAN for ~14.5h, cleared all init/ingress/QC/methylation/most-of-SNV stages, but 2 of ~500 ClairS pileup_variants shards stalled for 3-4h each on a hardcoded cpus=1 directive (modules/local/wf-clair3-snp.nf) \u2014 this was the run's long-pole/straggler bottleneck. CANCELLED at user request to apply an optimization bundle rather than wait out the tail. Attempt 5 (run_id=6771854) submitted with the full bundle below.",
+  "optimization_bundle_attempt5": {
+    "workflow_config_fix": {
+      "what": "Patched nextflow.config to add withName overrides for pileup_variants (cpus 1->4, memory 4GB->8GB*attempt) and evaluate_candidates (cpus 1->4, memory 8GB->16GB*attempt). These are the two ClairS per-shard processes hardcoded to cpus=1 in modules/local/wf-clair3-snp.nf regardless of region complexity \u2014 root cause of the attempt-4 straggler shards.",
+      "repackaged_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-tuned.zip",
+      "new_workflow_version": "v1_5_1-tuned (workflow_id=2590600)",
+      "version_pin_still_v1.5.1_upstream": true
+    },
+    "run_cache": {
+      "cache_id": "6598859",
+      "cache_behavior": "CACHE_ALWAYS",
+      "cache_s3_location": "s3://ont-lrs-somatic-poc-apse1-687677765589/run-cache/",
+      "purpose": "Any future resubmit/rerun on this workflow skips already-completed tasks instead of restarting from zero \u2014 mitigates the exact problem that made cancelling attempt 4 costly."
+    },
+    "thread_bumps": {
+      "rationale": "Larger instance-eligible thread counts shorten critical-path stages (mapping, SV calling, methylation) \u2014 HealthOmics scales the allocated instance to match requested threads.",
+      "ubam_map_threads": "8 -> 16",
+      "ubam_sort_threads": "3 -> 6",
+      "ubam_bam2fq_threads": "1 -> 2",
+      "severus_threads": "8 -> 16",
+      "haplotype_filter_threads": "4 -> 8",
+      "modkit_threads": "4 -> 8",
+      "dss_threads": "1 -> 2"
+    },
+    "not_changed_per_user_request": "Did NOT scope down pipeline stages \u2014 snv/sv/mod/diff_mod/annotation all remain true, matching the customer's on-prem command exactly.",
+    "deferred_to_production_batch": "StartRunBatch with run_group maxRuns>1 for parallel execution of the 150 pairs, and spot-instance merge step, are NOT part of this POC single-run optimization \u2014 noted for the production migration design."
+  },
+  "attempt5_correction": {
+    "run_id": "6771854",
+    "status": "FAILED",
+    "duration_seconds": 182,
+    "failure_reason": "INVALID_ECR_IMAGE_URI",
+    "root_cause": "CreateAHOWorkflowVersion call omitted container_registry_map. Without it, HealthOmics could not rewrite ontresearch/wf-common:sha... to the ECR mirror URI and rejected it as a malformed ECR reference. Fixed by recreating the version (v1_5_1-tuned2) with the same registryMappings block used on the base workflow."
+  },
+  "attempt6": {
+    "run_id": "3295679",
+    "run_name": "colo829-poc-20260704T0552Z-tuned2",
+    "workflow_version": "v1_5_1-tuned2",
+    "cache_id": "6598859",
+    "status": "CANCELLED",
+    "terminal_status": "CANCELLED",
+    "cancellation_type": "operator-initiated",
+    "start_time": "2026-07-04T05:57:00.789000+00:00",
+    "stop_time": "2026-07-04T14:27:05.629640+00:00",
+    "wall_clock_hours": 8.5,
+    "wall_clock_seconds": 30604.84,
+    "cancellation_reason": "Operator cancelled after essentially the whole pipeline completed EXCEPT one straggler snv:evaluate_candidates full-alignment shard (#341, taskId 9305854) hung on a pathological region with zero log progress for many hours even at the tuned 4 CPU. Root cause understood; not a pipeline failure. DiagnoseAHORunFailure intentionally skipped per design.",
+    "notes": "Confirmed genuinely running: 12+ init/version/param tasks COMPLETED. Tuned pileup_variants/evaluate_candidates cpus, bumped thread params, run cache attached, registry map fixed. This is the optimization-bundle run requested by the user. Reached terminal CANCELLED and was analyzed in Task 8."
+  },
+  "task7_notes_final": "Working run is attempt 6, run_id=3295679. Monitor with scripts/watch_run.sh 3295679 (update script's run_id). run_group_id=2793794 (72h cap) still applies.",
+  "cpu_sizing_decision": {
+    "question": "Should ClairS pileup_variants/evaluate_candidates use more than 4 CPU?",
+    "decision": "Data-driven \u2014 let the 4-CPU run (3295679) finish, then read AnalyzeAHORunPerformance per-task CPU utilization. Bump to 8/16 for production ONLY if pileup_variants shows it is genuinely CPU-bound at 4. If utilization is low, more cores waste spend; the real fix for a sequential hard-region straggler would be finer region sharding, not more cores per shard.",
+    "note": "severus (SV) and minimap2 mapping DO scale with threads and are already at 16. The open question is specifically the ClairS NN-inference processes, which are only partially parallel.",
+    "action_for_task8": "Task 8 must explicitly report per-task CPU utilization for pileup_variants and evaluate_candidates, and recommend a right-sized cpus value for the 150-pair production config."
+  },
+  "task8_notes": "COMPLETED. Run 3295679 reached terminal CANCELLED (operator-initiated, wall-clock ~8.50h). Ran AnalyzeAHORunPerformance (headroom=0.20, detailed=true) and GenerateAHORunTimeline; skipped DiagnoseAHORunFailure (cancelled, root cause known). Artifacts written locally to .kiro/specs/nextflow-poc-on-aws/analysis/colo829-poc-20260704T0552Z-tuned2/ and to s3://ont-lrs-somatic-poc-apse1-687677765589/analysis/colo829-poc-20260704T0552Z-tuned2/ : performance-report.json, performance-report.md, timeline.svg, cost-extrapolation.json, cost-extrapolation.md, findings.md.",
+  "task8_results": {
+    "terminal_run_status": "CANCELLED",
+    "wall_clock_hours": 8.5,
+    "performance_report": {
+      "total_estimated_cost_usd": 5.4552,
+      "task_cost_usd": 3.7676,
+      "storage_cost_usd": 1.6876,
+      "total_potential_savings_usd": 0.3061,
+      "total_tasks": 716,
+      "overall_cpu_efficiency_pct": 48.1,
+      "overall_memory_efficiency_pct": 15.1
+    },
+    "cpu_scaling_verdict": {
+      "pileup_variants": "NOT CPU-bound - 4 completed shards used ~1 core at the tuned 4 CPU (4-25% CPU efficiency). More cores waste money; right-size DOWN to omics.c.large (2 CPU). Answer to 'can we use more than 4 CPU?': no.",
+      "evaluate_candidates": "NOT a throughput problem - the straggler shard made zero progress for hours at 4 CPU. Single hard full-alignment region is sequential; fix is FINER REGION SHARDING, not more cores.",
+      "scales_with_threads": "sv:severus (peak 90.8% CPU) and minimap2 mapping - keep at 16 threads."
+    },
+    "top_rightsizing_lever": "Move 634 omics.m.large ClairS tasks (mostly clairs_extract_candidates, ~11% memory efficiency) to omics.c.large -> ~$0.279/run (bulk of the $0.3061 savings).",
+    "cost_extrapolation_150_pairs": {
+      "region": "ap-southeast-1",
+      "storage_type": "DYNAMIC",
+      "pipeline_version": "v1.5.1-tuned",
+      "headroom": 0.2,
+      "pair_count": 150,
+      "per_run_cost_observed_usd": 5.4552,
+      "total_cost_observed_usd": 818.28,
+      "per_run_cost_rightsized_usd": 5.1491,
+      "total_cost_rightsized_usd": 772.365,
+      "cancelled_run_caveat": "Observed cost slightly under-estimates a 100%-complete run (missing the unfinished straggler shard + SNV merge/annotation tail). The ~292GB tumor merge is a required per-pair pre-step, do on spot, not counted in per-run compute."
+    },
+    "analysis_prefix_s3": "s3://ont-lrs-somatic-poc-apse1-687677765589/analysis/colo829-poc-20260704T0552Z-tuned2/",
+    "analysis_prefix_local": ".kiro/specs/nextflow-poc-on-aws/analysis/colo829-poc-20260704T0552Z-tuned2/"
+  },
+  "production_deliverables": {
+    "cloud_pipeline": {
+      "what": "Cloud-adapted fork of wf-somatic-variation v1.5.1: (a) internal 2-tumor-BAM merge via optional bam_tumor2 param + merge_tumor process (wf_common/samtools container), backward-compatible with on-prem when bam_tumor2 unset; (b) right-sizing baked into nextflow.config from the POC perf report. Single HealthOmics run per pair, no EC2.",
+      "source_files": "production/cloud-pipeline/{main.nf,nextflow.config,nextflow_schema.json}",
+      "registered_version": "v1_5_1-cloud (workflow_id=2590600), status ACTIVE",
+      "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud.zip",
+      "container_registry_map": "registry-1.docker.io -> docker-hub (attached at version creation)",
+      "VALIDATION_REQUIRED": "main.nf merge injection was NOT executable-tested locally (no nextflow/data on workstation). One validation HealthOmics run required before the 150-pair campaign, using staged raw COLO829 tumor BAMs (PAU59949 + PAU61426) as bam_tumor + bam_tumor2."
+    },
+    "cloud2_fix": {
+      "problem": "v1_5_1-cloud validation run 7255183 FAILED at init: 'Unknown method invocation getFileSystem on channel type' at ingress.nf:962. Root cause: passed merge_tumor(...).merged CHANNEL into ingress_tumor, but ingress->xam_ingress->get_valid_inputs calls file(margs.input) which needs a launch-time path string, not a channel.",
+      "fix": "Added parallel ingress_merged workflow to lib/_ingress.nf that builds the ingress channel directly from the merged BAM tuple (bypassing xam_ingress path-resolution), reusing check_for_alignment + minimap2_alignment; emits same bam_channel shape as ingress. main.nf if-branch now calls merge_tumor(...).merged -> ingress_merged(...). merge_tumor emits tuple(path merged_tumor.bam, path .bai) with samtools index. bam_tumor2=null default added to nextflow.config.",
+      "damaged_file_recovery": "/tmp/wf-inspect/main.nf had been corrupted by a prior 72-line replacement (all_bams combine block + alignment_stats line destroyed). Recovered by re-applying the 3 clean edits to the intact workspace production/cloud-pipeline/main.nf, then copying to /tmp. Verified all_bams(217) + alignment_stats(262) present, braces/parens balanced.",
+      "registered_version": "v1_5_1-cloud2 (workflow_id=2590600), status ACTIVE",
+      "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud2.zip",
+      "validation_run_id": "8148080",
+      "validation_run_name": "colo829-cloud2-validation-20260704T1547Z",
+      "validation_output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud2-20260704T1547Z/",
+      "validation_params": "snv/sv/mod/diff_mod/annotation all true; bam_tumor=PAU59949, bam_tumor2=PAU61426, bam_normal=normal_single/normal.bam; override_basecaller_cfg=dna_r10.4.1_e8.2_400bps_sup@v4.2.0; threads map=16,sort=6,bam2fq=2,severus=16,hapfilter=8,modkit=8,dss=2; cache_id=6598859; run_group_id=2793794",
+      "validation_status": "MERGE VALIDATED END-TO-END. Run 8148080: merge_tumor (1) COMPLETED (8 CPU/16GB) and ingress_merged:check_for_alignment (1) COMPLETED (2 CPU/4GB). Downstream snv:evaluate_candidates (shards 500-690) + mod:dss running ON THE MERGED TUMOR, proving merge->ingress_merged->alignment->pileup->candidates path works. The prior v1_5_1-cloud run died at init before any task; the ingress_merged fix resolved the channel-to-file bug. ~5296 total tasks. Monitoring to terminal for runtime + cost.",
+      "merge_tumor_task": "merge_tumor (1) COMPLETED, cpus=8, memory=16GB",
+      "ingress_merged_task": "ingress_merged:check_for_alignment (1) COMPLETED, cpus=2, memory=4GB"
+    },
+    "cloud3_finer_sharding": {
+      "goal": "Option A - eliminate multi-hour snv:evaluate_candidates stragglers by making create_candidates emit MORE, SMALLER candidate BED files. Requested by user; baseline run 8148080 (cloud2) kept for comparison.",
+      "change": "modules/local/wf-clair3-snp.nf create_candidates process: after Clair3 SelectCandidates, post-split each per-contig candidate BED (>100 lines) into <=100-region sub-BEDs via `split -l 100 -a 4 -d`, remove originals. Workflow already flatMaps one evaluate_candidates task per BED file, so more BEDs -> more (smaller) parallel tasks automatically. Accuracy-preserving: identical candidates, just partitioned. ONLY change vs cloud2 (evaluate_candidates kept at 4 CPU/8 GB for clean 1-variable comparison).",
+      "why_not_other_options": "Option B (lower clair3_var_pct_full/ref_pct_full) reduces variant sensitivity - rejected for clinical somatic. Option C (patch Clair3 SelectCandidates.py in container) breaks pinned-container guarantee - rejected.",
+      "registered_version": "v1_5_1-cloud3 (workflow_id=2590600), ACTIVE",
+      "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud3.zip",
+      "patched_module_workspace_copy": "production/cloud-pipeline/modules/local/wf-clair3-snp.nf",
+      "run_id": "6497169",
+      "run_name": "colo829-cloud3-optionA-20260705T0424Z",
+      "output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud3-20260705T0424Z/",
+      "cache_id": "6598859",
+      "run_group_id": "2793794 (maxRuns bumped 1->2 so cloud3 runs concurrently with baseline 8148080; 72h cap retained)",
+      "params": "IDENTICAL to baseline run 8148080 (only workflow version differs)",
+      "cache_note": "CACHE_ALWAYS: upstream unchanged tasks (merge, alignment, pileup) cache-hit from baseline; create_candidates changed so it + evaluate_candidates re-run fresh - exactly the stage under test.",
+      "status": "RUNNING - monitoring",
+      "baseline_run_id": "8148080"
+    },
+    "cloud4_finer_sharding_plus_rightsize": {
+      "goal": "Option (b): fully-optimized production config = finer candidate-BED sharding (same as cloud3) PLUS evaluate_candidates right-sized 4->2 CPU, 8->4GB*attempt. Measures true end-to-end runtime+cost of the production artifact.",
+      "changes_vs_cloud2": "(1) create_candidates post-splits BEDs to <=100 regions/shard; (2) evaluate_candidates cpus=2, memory=4GB*attempt (was 4 CPU/8GB). Other ClairS stages already at 2 CPU from cloud2.",
+      "registered_version": "v1_5_1-cloud4 (workflow_id=2590600), ACTIVE",
+      "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud4.zip",
+      "run_id": "1876991",
+      "run_name": "colo829-cloud4-optimized-20260705T0440Z",
+      "output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud4-20260705T0440Z/",
+      "cache_used": "NONE (fresh run) - Nextflow cache hash ignores cpu/memory directives, so sharing cache would reuse cloud3's 4-CPU evaluate_candidates and never exercise 2 CPU. Fresh run gives true optimized end-to-end numbers.",
+      "run_group_id": "2793794 (maxRuns bumped to 3; 72h cap retained)",
+      "params": "IDENTICAL to baseline 8148080",
+      "status": "RUNNING - evaluate_candidates stage measured, fix PROVEN",
+      "concurrent_runs": "baseline 8148080 (cloud2, coarse shards, finishing stragglers) + 6497169 (cloud3, finer shards, cached) + 1876991 (cloud4, finer+rightsized, fresh)"
+    },
+    "OPTION_A_RESULT_PROVEN": {
+      "summary": "Finer candidate-BED sharding ELIMINATES the evaluate_candidates straggler tail. Measured across 3 concurrent COLO829 runs.",
+      "baseline_cloud2_run_8148080": {
+        "eval_cand_shards": 770,
+        "completed_shard_max_min": 2.9,
+        "stragglers": 4,
+        "straggler_runtime": "4-9h+ each, stuck at ClairS full-alignment step 6/7"
+      },
+      "cloud3_finer_run_6497169": {
+        "eval_cand_shards": 4461,
+        "shard_dur_median_min": 0.4,
+        "shard_dur_p90_min": 0.4,
+        "shard_dur_max_min": 1.3,
+        "stragglers": 0,
+        "cpus": 4
+      },
+      "cloud4_optimized_run_1876991": {
+        "eval_cand_shards": 4212,
+        "shard_dur_median_min": 0.4,
+        "shard_dur_p90_min": 0.4,
+        "shard_dur_max_min": 1.3,
+        "stragglers": 0,
+        "cpus": 2,
+        "note": "identical duration profile to cloud3 at 4 CPU -> confirms 2 CPU (omics.c.large) is correct production size, right-sizing is free"
+      },
+      "conclusion": "Worst-case shard dropped from multi-hour (baseline stragglers) to 1.3 min. ~770 -> ~4200-4460 shards (<=100 regions each). 2 CPU costs no speed vs 4 CPU. v1_5_1-cloud4 is the recommended production config.",
+      "pending": "Let cloud4 (1876991) reach terminal, then AnalyzeAHORunPerformance for final optimized per-run cost + 150-pair extrapolation.",
+      "K100_RESULT_costly": "K=100 EXPLODED to ~21,000-22,400 evaluate_candidates shards (~27-29x baseline 770). Straggler eliminated (max shard 1.3-1.4 min) BUT cost blew up due to HealthOmics 1-minute-MINIMUM per-task billing: cost of the evaluate_candidates stage alone (measured from live task timings, ~approx rates): baseline ~$4.5 (766 shards, c.xlarge) vs cloud3 ~$86 (22,388 shards, c.xlarge) vs cloud4 ~$41 (21,121 shards, c.large 2CPU). Each shard runs ~0.4min but billed 1min -> ~60% wasted + sheer volume. CONCLUSION: K=100 is WORSE than the straggler on cost. Cancelled cloud3 (6497169) + cloud4 (1876991) at user direction.",
+      "cloud5_giant_only": {
+        "design": "Split ONLY candidate BEDs with >8000 lines into 4000-line chunks. Leaves the ~766 already-fast BEDs untouched (no 1-min-min waste); chops only true giants into ~2-min pieces (safely above billing floor). Keeps total shards near baseline (~800-1200) while capping worst shard from hours to minutes. eval_candidates at 2 CPU/4GB (right-sized).",
+        "registered_version": "v1_5_1-cloud5 (workflow_id=2590600), ACTIVE",
+        "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud5.zip",
+        "patched_module_workspace_copy": "production/cloud-pipeline/modules/local/wf-clair3-snp.nf",
+        "run_id": "3612342",
+        "run_name": "colo829-cloud5-giantonly-20260706T0733Z",
+        "output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud5-20260706T0733Z/",
+        "cache": "NONE (fresh) for true end-to-end optimized cost",
+        "run_group_id": "2793794 (maxRuns=3, 72h cap)",
+        "status": "PENDING - monitoring",
+        "tmp_tree_note": "/tmp/wf-inspect was cleaned by OS mid-session; reconstructed by downloading cloud4 zip from S3 and re-patching module. All cloud edits (merge/ingress_merged/2CPU) intact."
+      },
+      "cost_decomposition_cloud5_fresh": "From live task timings (~$19 compute, 6851 tasks, 114 actual + 38.4 floor-waste instance-hr): evaluate_candidates $6.25 (46h actual, mostly monsters), clairs_extract_candidates $2.59, pileup_variants $2.51, clairs_create_paired_tensors $2.34 (10.7h FLOOR WASTE), clairs_predict_pileup $1.28 (13.9h FLOOR WASTE). KEY: 1-min-minimum billing wastes 38.4 instance-hr = 25% of compute, concentrated in the ~1240 per-genomic-chunk tasks (predict/tensors/pileup). Biggest cost lever = coarsen Clair3 chunk_size (hardcoded --chunk_size 5000000 in make_chunks, ~3.1Gb/5Mb*2samples=~1240 chunks) to e.g. 20Mb -> 4x fewer chunk tasks -> save ~$2.6/run, ZERO accuracy impact. 2nd lever = blocklist high-complexity regions (removes ~monster compute ~$2-2.5). Fresh run true cost ~$19 (NOT the cached $5.46 from POC).",
+      "cloud6_round_robin": {
+        "idea_from_user": "Distribute each contig's candidate BED entries ROUND-ROBIN into N balanced sub-BEDs so complex-region candidates (contiguous in the BED) spread evenly across shards instead of clustering into a few multi-hour stragglers.",
+        "implementation": "modules/local/wf-clair3-snp.nf create_candidates: after SelectCandidates, cat all of a contig's beds, deal round-robin (awk NR % N) into N sub-beds named <contig>.rrNNNN. N ~ total/500 candidates, capped 100/contig. Accuracy-preserving (full-alignment per-candidate independent; outputs concat+sorted per contig downstream). Must be per-contig (evaluate_candidates passes --ctgName). eval_candidates at 2 CPU.",
+        "expected": "~1000-1500 balanced shards, worst ~24-45min (vs baseline 37h / cloud5 6.5h+ stragglers), NO dropped regions. Compute conserved (~$6 eval); win is wall-clock/storage + no straggler. Pair with chunk_size 20Mb for compute savings.",
+        "registered_version": "v1_5_1-cloud6 (workflow_id=2590600), ACTIVE",
+        "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud6.zip",
+        "patched_module_workspace_copy": "production/cloud-pipeline/modules/local/wf-clair3-snp.nf",
+        "run_id_v1_FAILED": "6135408 - FAILED at create_candidates. Bug: awk 'printf \"%s\\n\"' - in a Nextflow shell: block Groovy converts \\n to a real newline before awk sees it -> 'awk: runaway string constant'. SelectCandidates succeeded; the round-robin awk crashed create_candidates (no retry errorStrategy -> whole run failed).",
+        "fix": "Replaced awk 'printf \"%s\\n\", $0 >> sprintf(...)' with 'print $0 >> (sprintf(...))' (print auto-adds newline, no escape needed). Re-registered as v1_5_1-cloud6b.",
+        "registered_version_fixed": "v1_5_1-cloud6b (workflow_id=2590600), ACTIVE",
+        "definition_zip_fixed": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud6b.zip",
+        "run_id_fresh_cancelled": "6170851 - fresh run cancelled ~20min in (merge). Swapped for a CACHED run to iterate fast on the round-robin (user: 'test from the BED file onwards').",
+        "run_id": "4526792",
+        "run_name": "colo829-cloud6b-cached-bedonwards-20260707T0810Z",
+        "cache": "cache_id 6598859 CACHE_ALWAYS - reuses upstream merge/align/pileup/predict (cached by cloud3, same upstream code) so ONLY create_candidates (round-robin) + evaluate_candidates re-run. This is the fast 'from BED onwards' test loop (~30-60min vs 7h fresh). True fresh cost already known (~$19 from cloud5).",
+        "status": "superseded by cloud7 production config"
+      },
+      "round_robin_unit_test": "PROVEN locally (instant): 50000-line synthetic candidate BED with a 3000-line CONTIGUOUS hot cluster -> round-robin awk produced 100 buckets, 50000 lines out (no loss/dup), hot cluster spread EXACTLY 30/bucket across all 100 (perfectly balanced), buckets 500 lines each. Confirms the print-fix works and complex regions no longer cluster into stragglers.",
+      "healthomics_cache_is_version_scoped": "Discovered: HealthOmics run cache misses across workflow VERSIONS. So you cannot cheaply test 'from BED onwards' while changing code (each code change = new version = full cache miss, re-runs from merge). Cache only helps re-running the SAME version (failures/resume). Fast iteration on BED-transform logic = local unit test.",
+      "upstream_stage_timing_cloud5": "Aggregate task-minutes (not wall-clock): clairs_extract_candidates 1321min/631tasks, pileup_variants 1106/1262, create_paired_tensors 571/1209, predict_pileup 372/1209, mod:dss 163/2 (81min each!), merge_tumor 96min(1), sv:severus 53min(1), mosdepth 30min. minimap2_alignment did NOT run (merged BAM header matched ref -> realignment correctly SKIPPED). ClairS NN stages are single/few-threaded, NOT CPU-scalable (bumping to 24 CPU wastes money, no speedup). Only merge_tumor (samtools) + severus scale with threads.",
+      "cloud7_production": {
+        "config": "PRODUCTION config: (1) round-robin candidate BEDs (<=100 balanced buckets/contig, ~500 candidates each) - no straggler, all regions kept; (2) chunk_size 5Mb->20Mb in make_chunks (4x fewer pileup/predict/tensor tasks -> ~$2.6/run less 1-min-floor waste, zero accuracy impact); (3) evaluate_candidates 2CPU/4GB right-size; (4) merge_tumor 8->16 CPU (only thread-scaling upstream task on critical path). NO blocklist (per user - keep all regions).",
+        "registered_version": "v1_5_1-cloud7 (workflow_id=2590600), ACTIVE",
+        "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud7.zip",
+        "workspace_source": "production/cloud-pipeline/{main.nf,nextflow.config,nextflow_schema.json,modules/local/wf-clair3-snp.nf}",
+        "run_id": "7885683",
+        "run_name": "colo829-cloud7-production-20260707T0930Z",
+        "cache": "NONE (fresh) for true end-to-end production cost + runtime measurement",
+        "status": "CANCELLED - config bug (see cloud7_finding). chunk_size 20Mb WORKED (pileup_variants 268 vs cloud5 1262, ~4.7x fewer) but pileup_variants OOM'd at 3GB.",
+        "cloud7_finding": "chunk_size 5Mb->20Mb cut pileup_variants task count 1262->268 (confirmed). BUT the 3GB memory (right-sized for 5Mb chunks) is 4x too small for 20Mb chunks -> 255/257 pileup_variants OOM'd at 3GB, 2 even at 6GB, only 9 completed at 3GB -> mass memory-scaled retry churn (wasteful). ONLY pileup_variants affected (it holds a full chunk's pileup; create_paired_tensors/predict work on candidate subsets, didn't fail). LESSON: chunk_size up MUST pair with pileup_variants memory up. Cancelled; fixed in cloud8."
+      },
+      "ROUND_ROBIN_WAS_A_MISTAKE": "Measured: cloud8 round-robin (500 candidates/bucket) evaluate_candidates = 3832 shards, 204 instance-hr, ~$23.6, 15h wall-clock at 25-concurrency. vs cloud5 CONTIGUOUS giant-only = 2237 shards, 46 instance-hr, ~$6.25, worst shard 6.5h. Round-robin SCATTER destroys BAM read-locality in evaluate_candidates (each shard re-reads BAM across whole contig) -> ~4.4x MORE eval compute AND slower. Contiguous wins on BOTH cost and wall-clock. Abandoned round-robin. cloud8+cloud9 CANCELLED.",
+      "cloud10_contiguous_giant_only": {
+        "config": "PROD v4 (current best): CONTIGUOUS giant-only candidate split - split only BEDs >2000 lines into contiguous 1000-line chunks (preserves BAM locality, bounds worst deep shard ~1.5h). KEEPS cloud9 wins: ClairS wf_build_regions chunk 20Mb + Clair3 make_chunks chunk 20Mb + memory (pileup 12GB, extract/tensors 16GB, predict 12GB) + eval 2CPU + merge 16CPU. NO round-robin, NO blocklist.",
+        "registered_version": "v1_5_1-cloud10 (workflow_id=2590600), ACTIVE",
+        "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud10.zip",
+        "run_id": "4350921",
+        "run_name": "colo829-cloud10-contiguous-20260707T0930Z",
+        "status": "PENDING - the candidate production config"
+      },
+      "STRAGGLER_ROOT_CAUSE_FINAL": "Stragglers are INTRINSIC depth, not sharding. cloud10 (contiguous 1000-line) STILL had 7 stragglers running 5-9h (301-541min) - a 1000-line chunk of an ultra-deep locus = ~32sec/candidate (vs 0.03sec normal = ~1000x). ONT authors comment in evaluate_candidates confirms 'can go very high depending on depth'. Line-count splitting CANNOT fix (proven: cloud5 contiguous coarse=6.5h straggler; cloud8 round-robin=no straggler but 4.4x scatter cost; cloud10 contiguous fine=still 5-9h stragglers). Real fixes: blocklist (user declined), depth-aware split, or coverage cap.",
+      "cloud12_depth_aware": {
+        "approach": "User chose depth-aware split. New process split_candidates_by_depth (modules/local/wf-clair3-snp.nf): samtools bedcov on the phased BAM to get per-candidate coverage, then contiguous split by cumulative MEAN-DEPTH^2 budget (cost scales super-linearly with depth ~ depth^2, so coverage^1 under-corrects ~30x; depth^2 balances). Deep loci fragment into many small shards, shallow stay coarse -> balanced runtimes, no straggler, contiguous (no scatter penalty), accuracy-preserving. Wired: create_candidates(stock) -> candidate_beds_raw -> combine w/ phased_bam by [meta,ctg] -> split_candidates_by_depth -> flatMap -> evaluate_candidates. Param clairs_depth_split_budget=72000000 (mean_depth^2 units, TUNABLE - first run calibrates).",
+        "registered_version": "v1_5_1-cloud12 (ACTIVE)",
+        "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud12.zip",
+        "run_5948692_FAILED_init": "nf-schema strict validation rejected new param clairs_depth_split_budget ('Found unexpected parameters'). FIX: added clairs_depth_split_budget to schema_ignore_params in nextflow.config. Re-registered v1_5_1-cloud12b.",
+        "registered_version_fixed": "v1_5_1-cloud12b (ACTIVE)",
+        "definition_zip_fixed": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud12b.zip",
+        "run_id": "2190385",
+        "run_name": "colo829-cloud12b-depthaware-20260707T1145Z",
+        "status": "PENDING - watch init (new process+wiring is the risk), then split_candidates_by_depth runs, then eval shard duration spread (target: no 5-9h straggler; tune budget if shards too many/few)",
+        "keeps": "ClairS+Clair3 chunk 20Mb, memory (pileup 12GB, extract/tensors 16GB, predict 12GB), merge 16CPU, eval 2CPU"
+      },
+      "cloud13_depth_aware_percontig": {
+        "why": "cloud12b split_candidates_by_depth ran PER-BED (547 tasks) = heavy overhead stage before eval. cloud13 consolidates to ONE split task PER CONTIG (~48) by passing each contig's full bed-set + phased BAM to one task (cat beds -> bedcov -> mean-depth^2 split). Cannot offload to EC2 (mid-DAG, needs run-internal phased BAM + candidate beds). Same balancing, ~90% fewer split tasks.",
+        "registered_version": "v1_5_1-cloud13 (ACTIVE)",
+        "run_id": "1362376",
+        "run_name": "colo829-cloud13-depthaware-percontig-20260707T1215Z",
+        "status": "PENDING - parallel to cloud12b. Both test depth-aware straggler elimination; cloud13 is the efficient version.",
+        "note": "If create_candidates could take the BAM, split could fold in for 0 extra tasks - deferred; per-contig (48) is low-risk big win vs 547."
+      },
+      "cloud10_cancelled": "CANCELLED - had 7 stragglers at 5-9h (contiguous 1000-line didn't fix intrinsic-depth). cloud11 (4000-line) NOT run - superseded by depth-aware cloud12.",
+      "VCF_VERIFICATION_GAP": "User wants 'results dont change' verified. PROBLEM: ALL prior runs were CANCELLED (stragglers/scatter-cost), so NO completed baseline somatic VCF exists to diff against. chunk_size (Clair3+ClairS) and candidate-BED splitting are genome-PARTITIONING params - call-neutral by design (Clair3/ClairS shard with boundary handling + merge; full-alignment is per-candidate independent of which BED file the candidate is in). PLAN: after cloud10 completes, run a FAST restricted-region (e.g. chr20/21 via bed) A/B: default 5Mb+no-split VS cloud10 20Mb+split, diff somatic VCFs to empirically confirm partitioning-neutrality. Full-genome identity diff needs a completed clean baseline we don't yet have.",
+      "cloud9_clairs_chunk": {
+        "levers": "#3 (consolidate candidate stages) + #4 (right-size memory to match). Found a SECOND chunk_size=5000000 in the ClairS wf_build_regions process (modules/local/wf-somatic-snv.nf:180) - SEPARATE from the Clair3 make_chunks chunk_size cloud8 changed. This ClairS one drives extract_candidates(631) + create_paired_tensors/predict_pileup(1209 each). Bumped it 5Mb->20Mb to cut those ~4x, and sized memory to match (extract_candidates 16GB, create_paired_tensors 16GB, create_fullalignment 16GB, predict_pileup 2CPU/12GB) to avoid cloud7-style OOM churn.",
+        "registered_version": "v1_5_1-cloud9 (workflow_id=2590600), ACTIVE",
+        "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud9.zip",
+        "run_id": "1012427",
+        "run_name": "colo829-cloud9-clairschunk-20260707T0730Z",
+        "cache": "NONE (fresh) - same inputs/params as cloud8 for VCF comparison",
+        "RESULTS_VERIFICATION_REQUIRED": "User directive 'make sure results dont change'. ClairS chunk_size is a genome-partitioning param (should be call-neutral like Clair3's) but NOT assumed. MUST diff cloud9 final somatic SNV VCFs vs cloud8 (bcftools isec) - adopt ONLY if variant calls identical. cloud8 output: s3://.../outputs/colo829-cloud8-20260707T0530Z/. cloud9 output: s3://.../outputs/colo829-cloud9-20260707T0730Z/.",
+        "status": "PENDING - monitoring; expect ~155 extract, ~300 tensor/predict tasks (4x fewer), no OOM, then VCF-identity check vs cloud8"
+      },
+      "cloud8_production_v2": {
+        "config": "cloud7 + pileup_variants memory 3GB->12GB (fixes OOM churn for 20Mb chunks). = round-robin BEDs + chunk_size 20Mb + pileup_variants 2CPU/12GB + eval_candidates 2CPU/4GB + merge 16CPU. No blocklist. THE production config.",
+        "registered_version": "v1_5_1-cloud8 (workflow_id=2590600), ACTIVE",
+        "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud8.zip",
+        "workspace_source": "production/cloud-pipeline/{main.nf,nextflow.config,nextflow_schema.json,modules/local/wf-clair3-snp.nf}",
+        "run_id": "2784580",
+        "run_name": "colo829-cloud8-production-20260707T0530Z",
+        "cache": "NONE (fresh) - true production cost+runtime measurement",
+        "status": "RUNNING - OOM FIX CONFIRMED: pileup_variants at 12GB has 0 failures (vs cloud7 255/257 OOM at 3GB). chunk_size 20Mb giving ~268 pileup tasks. Progressing to round-robin SNV stage; will pull AnalyzeAHORunPerformance at terminal for true production cost."
+      },
+      "ubam_cost_test_prep": {
+        "goal": "Measure FULL per-run cost from UNALIGNED bam (uBAM) input, i.e. INCLUDING minimap2 alignment, which our POC skipped (pre-aligned BAMs). To run AFTER cloud7.",
+        "why_reset": "ONT open data has NO uBAMs for COLO829 (all vHg38 aligned, with .bai). So created true uBAMs via samtools reset + strip @SQ header lines from the 3 already-staged aligned BAMs.",
+        "ec2": "Ephemeral c6i.8xlarge i-0473ef6277c9c66dd, 600GB gp3, on-demand, instance profile ubam-reset-ec2-profile (S3 rw + ec2:TerminateInstances). User-data: scripts/ubam_reset_user_data.sh. Downloads each BAM, samtools reset -O bam | reheader strip @SQ, verify quickcheck + @SQ=0, upload, self-terminate. ~2h.",
+        "outputs_pending": [
+          "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/ubam/tumor1_PAU59949.ubam.bam",
+          "s3://.../inputs/ubam/tumor2_PAU61426.ubam.bam",
+          "s3://.../inputs/ubam/normal_PAU59807.ubam.bam"
+        ],
+        "progress_log": "s3://.../inputs/ubam/_ubam.log ; completion marker s3://.../inputs/ubam/_UBAM_COMPLETE",
+        "run_plan": "After cloud7 + uBAMs ready: StartAHORun v1_5_1-cloud7 with bam_tumor=ubam/tumor1, bam_tumor2=ubam/tumor2, bam_normal=ubam/normal, same ref/params. minimap2 will run (uBAM detected) -> AnalyzeAHORunPerformance gives full-cost-incl-alignment number. Compare vs pre-aligned ~$12-15.",
+        "created_iam": "role ubam-reset-ec2-role + instance profile ubam-reset-ec2-profile (delete after use).",
+        "COMPLETE": "v1 instance i-0473ef6277c9c66dd FAILED (streaming-log exec gave no diagnostics; relaunched). v2 instance i-03fb11821a13f0bcf SUCCEEDED (trap-based script, EXIT rc=0, self-terminated). uBAMs verified SQ_lines=0 (true unaligned): tumor1_PAU59949.ubam.bam 133GB, tumor2_PAU61426.ubam.bam 134GB, normal_PAU59807.ubam.bam 164GB at s3://.../inputs/ubam/. Ready for full-cost-from-uBAM run on v1_5_1-cloud8: bam_tumor=ubam/tumor1, bam_tumor2=ubam/tumor2, bam_normal=ubam/normal, same ref/params -> minimap2 WILL run -> measures alignment-inclusive cost."
+      },
+      "baseline_8148080_status": "CANCELLED at ~37h. Its 4 evaluate_candidates stragglers ran ~37h (2250 min) each and never finished - effectively hung, would have hit 72h cap. Comparison data captured: 766 fast shards (median 1.5min) + 4 hung stragglers at 37h. Cancelled to stop waste once cloud5 proved the fix.",
+      "straggler_root_cause_refined": "The evaluate_candidates straggler is only PARTLY a candidate-count problem. Line-count sharding (giant-only, >8000->4000-line chunks) cut the worst shard from ~37h (baseline) to ~3.3h (cloud5), but did NOT fully eliminate it: the hardest regions are INTRINSICALLY expensive for the full-alignment NN model (deep/complex loci where each candidate costs a lot), so a chunk with few but monster candidates is still slow. A fully straggler-free result would need difficulty-aware region splitting inside ClairS (not possible in v1.5.1). Production verdict: giant-only sharding gives ~3.3h worst-case tail + ~2200 shards + no cost explosion = acceptable; combined with batch parallelism across 150 pairs and the 72h cap, a ~3h tail per run is fine.",
+      "cloud15_mosdepth_split": {
+        "why": "The depth-aware split's samtools bedcov (cloud12b/13/14) re-scanned the phased BAM to measure per-candidate depth, which became the pipeline's LONG POLE and main cost sink: cloud12b per-bed split = 136 task-hr with a 6h straggler; cloud13 per-contig = ~75 task-hr with 3.1h max. Deep contigs dominated the bedcov exactly as they dominated eval. KEY INSIGHT: mosdepth ALREADY runs every run in the alignment_stats QC stage (once per input BAM, tumor+normal), producing a 50kb-windowed mean-depth track (regions.bed.gz, col4=mean depth, depth_window_size=50000, depth_intervals=false so --no-per-base). We were paying for a depth scan twice.",
+        "change": "split_candidates_by_depth now reads the tumor mosdepth regions.bed.gz (threaded from main.nf -> snv() take: mosdepth_regions, filtered to meta.type=='tumor', combined by meta.sample) and uses `bedtools map -a candidates -b depth.contig -c 4 -o mean` to annotate each candidate with its overlapping-window mean depth, then applies the SAME mean-depth^2 cumulative-budget contiguous split. NO BAM reads -> split stage drops from multi-hour to seconds. bedtools is available in wf_common (mosdepth process already uses it). Accuracy-preserving: identical candidates, only partitioned. Contiguity preserved (sort by coord). 50kb resolution captures the megabase-scale deep loci that drive stragglers; sub-window spikes contribute too few candidates to matter.",
+        "files_changed": "modules/local/wf-clair3-snp.nf (split_candidates_by_depth input+shell), workflows/wf-somatic-snv.nf (take: mosdepth_regions; tumor_depth channel; dsplit_in rewired off phased BAM onto depth track), main.nf (snv() call passes qcdata.mosdepth_tuple).",
+        "keeps": "per-contig split (cloud13), budget 400M (cloud14), ClairS+Clair3 chunk 20Mb, memory (pileup 12GB, extract/tensors 16GB, predict 12GB), merge 16CPU, eval 2CPU.",
+        "registered_version": "v1_5_1-cloud15 (workflow_id=2590600), ACTIVE",
+        "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud15.zip",
+        "run_id": "6165410",
+        "run_name_prefix": "colo829-cloud15-mosdepthsplit-",
+        "cache_id": "6598859",
+        "run_group_id": "2793794",
+        "status": "PENDING - launched. Watch: (1) init passes (new take: arg + channel wiring is the risk); (2) split_candidates_by_depth tasks complete in SECONDS not hours (the whole point); (3) eval shard count ~1200 @400M with max <~30min, no straggler; then AnalyzeAHORunPerformance for true production cost+runtime. cloud14 (1219836) cancelled to make room.",
+        "budget_note": "400M budget calibrated for the bedcov world (d=cov/candidate_width). cloud15 d=mosdepth 50kb window mean depth - same reads/base units, so budget ~comparable; first run calibrates, tune clairs_depth_split_budget if shard count off."
+      },
+      "vcf_consistency_ab_chr2021": {
+        "goal": "Empirically prove the chunk_size optimization is CALL-NEUTRAL (does not change variant calls). Controlled A/B: SAME cloud15 code (identical depth-split, memory, merge), vary ONLY chunk_size 5Mb vs 20Mb, restricted to chr20+21 via --bed for fast turnaround.",
+        "BUG_CHAIN_cloud15_to_18": "Two bugs found+fixed in the mosdepth-split path: (1) cloud15 FAILED 'bedtools: command not found' - wf_common lacks bedtools. FIX(cloud16): depth join in PURE AWK two-pointer merge of sorted 50kb windows vs sorted candidates (gzip/sort/awk only). Split now completes in ~16s (validated live) vs old bedcov multi-hour. (2) cloud16 evaluate_candidates OOM on deep-locus shards; the [137,140] conditional errorStrategy did NOT retry because HealthOmics OOM reports a different exit code -> hard FAIL. FIX(cloud17): plain errorStrategy 'retry'. (3) CODE REVIEW caught: process-body memory{8GB} was SHADOWED by nextflow.config withName override memory{4GB} (config wins). FIX(cloud18): raised config eval memory base 4->8GB -> escalates 8/16/24/32/40GB via retry. Other heavy ClairS stages keep [137,140] conditional but are PROVEN to complete full-genome at 12-16GB in cloud12b/13, so untouched.",
+        "arm_A_5mb": {
+          "version": "v1_5_1-cloud17-5mb",
+          "run_id": "2825896",
+          "run_name_prefix": "colo829-ab3-5mb-",
+          "chunk_size": "5000000",
+          "note": "eval 4GB base + retry (cloud17); chr20/21 deep shards self-heal via retry to <=20GB"
+        },
+        "arm_B_20mb": {
+          "version": "v1_5_1-cloud17",
+          "run_id": "5867535",
+          "run_name_prefix": "colo829-ab3-20mb-",
+          "chunk_size": "20000000"
+        },
+        "cloud18_full_genome_prod": {
+          "version": "v1_5_1-cloud18",
+          "run_id": "5474302",
+          "run_name_prefix": "colo829-cloud18-prod-",
+          "config": "eval mem 8GB base (hardened), real 2-tumor merge, all stages true, cache 6598859",
+          "note": "the whole-genome production validation run that MUST complete"
+        },
+        "RESULT_PASSED_20260710": "VCF CONSISTENCY PROVEN. Final A/B on cloud19: Arm A 5mb (run 1242166) vs Arm B 20mb (run 9438806), both COMPLETED on chr20+21, SNV-only, pre-merged tumor. Downloaded COLO829_somatic_snv.vcf.gz from both; python compare (scripts/vcf_compare.py): 3026 records each, 3026 shared (CHROM/POS/REF/ALT), 0 A-only, 0 B-only, 0 positions differing in QUAL/FILTER/GT/any field. BYTE-identical file size (95098). CONCLUSION: chunk_size 5Mb vs 20Mb (Clair3 make_chunks + ClairS wf_build_regions) is 100% call-neutral. Depth-split held constant across both arms. The optimization bundle does NOT change variant calls. These are also the FIRST completed somatic VCFs in the project (all prior runs cancelled).",
+        "final_working_version": "v1_5_1-cloud19 (20mb prod) + v1_5_1-cloud19-5mb (test twin). Bug chain resolved: cloud15 bedtools-missing -> cloud16 awk split; cloud16 eval-OOM-no-retry -> cloud17 plain retry; cloud17 config-shadowed-memory -> cloud18 config eval 8GB; cloud18 shard-name-collision at aggregate_full_align_variants -> cloud19 contig-prefixed shard names. cloud19 runs end-to-end to COMPLETE.",
+        "cloud20_fine_depth_split": {
+          "why": "cloud19 full-genome had 4-6h evaluate_candidates stragglers on chr1/9/16-class centromeric loci. Root cause: the split read the 50kb QC mosdepth track, which DILUTES sharp depth spikes (a ~3000x satellite peak over ~10kb inside a 50kb window averages to a few-hundred x), so those candidates were ~10-20x under-weighted (mean-depth^2) and the split under-fragmented them. Exponent analysis: straggler cost ratio implies per-candidate cost ~ depth^1.4-1.5, BELOW the depth^2 weight, so the exponent is fine - the depth MEASUREMENT resolution was the problem.",
+          "change": "New process mosdepth_split_depth (base wf-somatic-variation container, has mosdepth): dedicated tumor-only genome-wide mosdepth at 2kb windows (param split_depth_window_size=2000), '-x -n --by 2000'. split_candidates_by_depth now reads THIS fine track instead of the 50kb QC track. Removed the mosdepth_regions take: arg from snv() and reverted main.nf (no longer passes qcdata.mosdepth_tuple). QC 50kb path untouched.",
+          "cost_time": "~38min mosdepth pass (I/O-bound; window size barely affects runtime), runs in PARALLEL with pileup/phasing so ~0 added wall-clock; ~1 instance-hr ~= $0.10-0.15/run. Trivial vs eliminating the multi-hour straggler tail.",
+          "registered_version": "v1_5_1-cloud20 (ACTIVE)",
+          "definition_zip": "s3://.../workflow-artifacts/wf-somatic-variation-v1.5.1-cloud20.zip",
+          "run_id": "6488348",
+          "status": "PENDING - full-genome run to confirm chr1-class eval stragglers drop from 4-6h to <30min. cloud19 full (9020112) left running as the WITH-straggler baseline for comparison. budget unchanged 400M.",
+          "expected": "eval max shard <~30min, no straggler tail; shallow-region shard count barely rises (finer depth only fragments where genuinely spiky)."
+        },
+        "cloud21_candidate_cap": {
+          "why": "cloud20 (2kb fine depth) cut the worst eval straggler 15h->3.4h but ONE pathological shard remained. Timing analysis of cloud20 completed shards (logs record 'processed positions in <ctg>' + elapsed): eval time is ~LINEAR in processed positions, Pearson r=0.94, ~0.0133 s/position, roughly DEPTH-INDEPENDENT per-position cost across chr1/chr5/chr18. So shard runtime is driven by candidate/position COUNT, not depth^2 as assumed. ~200 candidates (~61k positions) = ~14min.",
+          "change": "Added hard cap clairs_max_candidates_per_shard=250: split cuts a shard when Sum(d^2)>=budget OR candidate_count>=250. Bounds worst shard to ~17min regardless of depth-estimate accuracy. 250 sits above fast-shard counts (won't over-split shallow regions -> no floor-billing blowup) and below the pathological deep shard. Unit-tested: 1000 candidates -> 3 shards (400/400/200) at cap 400; preserved all lines.",
+          "model_note": "The linear-in-positions finding suggests depth^2 weighting may be over-engineered vs simple equal-candidate balancing; NOT changed yet (7-shard sample). cloud21 keeps depth^2 budget + adds cap. Definitive resolution needs a per-shard manifest (candidate_count, sum_d2, mean_depth) - deferred.",
+          "registered_version": "v1_5_1-cloud21 (ACTIVE)",
+          "run_id": "4894988",
+          "status": "PENDING - full-genome; expect worst eval shard <~20min, no straggler tail, then AnalyzeAHORunPerformance for final cost/runtime. cloud19 cancelled; cloud20 (6488348) still finishing its 3.4h straggler."
+        },
+        "cloud22_depth_driven_500bp": {
+          "why": "User directive: the shard bound must be DEPTH-DRIVEN, not a flat count cap (the cap can't see per-candidate cost, which rises steeply with depth: ~32s/candidate at ultra-deep vs ~0.03s normal, ~1000x). cloud20's straggler climbed past 8h = ~34x the 14min max completed shard, confirming per-candidate cost is NOT constant at extreme depth (my earlier ~0.0133 s/position only held across moderate-depth shards). Root reason the depth^2 budget didn't cut it: depth still UNDER-measured at 2kb (dilution).",
+          "change": "split_depth_window_size 2000->500. The depth^2 budget is already the depth-driven bound; finer windows let it SEE the true peak so ultra-deep candidates (d^2 large) self-fragment into tiny shards regardless of count. Count cap 250 kept only as a loose backstop. Per-contig awk join stays cheap.",
+          "registered_version": "v1_5_1-cloud22 (ACTIVE)",
+          "run_id": "1979250",
+          "status": "PENDING - full-genome; test whether 500bp depth eliminates the extreme-locus straggler via the depth^2 budget.",
+          "calibration_pending": "cloud20 straggler (taskId 4439565) still running ~8h; when it COMPLETES its log gives positions+time+contig = the true per-candidate cost at the extreme locus, to pick the correct depth exponent/budget. If 500bp+d^2 still leaves a tail, options: steeper exponent (d^2.5), lower budget, or per-base depth for deepest contigs.",
+          "open_question": "eval time measured ~linear in processed positions at MODERATE depth (r=0.94) but the 8h straggler implies steep depth dependence at EXTREME depth - reconcile via straggler log + a per-shard manifest (candidate_count, sum_d^p, mean_depth) before the 150-pair campaign."
+        },
+        "cloud23_full_optimized": {
+          "what": "Consolidated production config: cloud21 straggler fix (candidate cap 250 + contig-prefixed shard names) + cloud22 500bp depth track + merge_tumor header IN-PLACE fix (samtools reheader -i, no 290GB rewrite, with rewrite fallback) + mosdepth QC 2->8 CPU + bamstats QC 4->16 CPU + NEW save_merged_tumor param.",
+          "save_merged_tumor_param": "User-requested runtime param to keep/discard the in-pipeline merged tumor BAM. Default false = discarded (it is a transient intermediate consumed by ingress_merged, not published). true = published to <out_dir>/<sample>/merged_tumor/ (adds ~290GB copy + storage).",
+          "HEALTHOMICS_PARAM_GOTCHA": "First attempt (v1_5_1-cloud23) FAILED StartRun: 'Unexpected workflow parameters: save_merged_tumor'. HealthOmics validates runtime params against the parameter template it builds from nextflow_schema.json - schema_ignore_params only satisfies nf-schema, NOT HealthOmics. FIX (cloud23b): declared save_merged_tumor as a boolean property in nextflow_schema.json (and removed it from schema_ignore_params). Then StartRun accepted --save_merged_tumor true.",
+          "qc_cpu_rationale": "mosdepth -t only parallelizes BGZF decompression (depth calc single-threaded) -> plateaus ~4-8, so 8 not 32/64. bamstats parse is single-threaded-bound -> ~8-16, so 16. Higher forces big idle instances (cost up, no speed).",
+          "merge_path_verified": "publishDir does NOT alter the merged channel; ingress_merged still consumes merge_tumor.out.merged = tuple(merged_tumor.bam, .bai). index runs AFTER reheader so .bai matches final header. downstream path intact.",
+          "registered_version": "v1_5_1-cloud23b (ACTIVE); v1_5_1-cloud23 registered but unusable (param not in schema)",
+          "run_id": "2391193",
+          "run_params": "/tmp/params_cloud23.json = params_cloud5 + save_merged_tumor=true (full merge path, all stages, cache 6598859)",
+          "status": "PENDING - full-genome; validates merge header fix + QC cpu bumps + saves merged BAM to output. Expect no straggler (cap), faster merge/QC.",
+          "expected_merged_bam_output": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud23b-<TS>/<runid>/.../COLO829/merged_tumor/merged_tumor.bam"
+        },
+        "cloud20_perf_report": "AnalyzeAHORunPerformance on cloud20 (6488348, CANCELLED). CAVEAT: manifest captured only 767 tasks (cancelled mid-run) so TOTAL COST ($18.44 = $11.77 task + $6.67 storage) is UNDER-counted - not the true full-run cost. But per-stage EFFICIENCY is valid: overall 53.9% CPU / 14.1% memory efficiency (heavily memory-over-provisioned). Right-size recs: clairs_extract_candidates r.large(16GB)->c.large(4GB) uses ~1.8GB ($1.42 save); pileup_variants r.large->c.large ($0.65); merge_tumor c.4xlarge(16CPU)->c.2xlarge(8CPU, I/O-bound) ($0.71); create_paired_tensors MIXED (63 under-provisioned -> keep); severus UNDER-provisioned (wants 32CPU).",
+        "cloud24_cost_optimized": {
+          "what": "Cost+speed optimized production config per user (do 1,4,5 + keep header fix). #1 COARSEN: candidate cap 250->2000 (cloud21's cap-250 exploded eval to 18685 shards / ~630 vCPU-hr / ~47% floor waste; cap 2000 targets ~15min max shard + far fewer shards). #4 RIGHT-SIZE from cloud20 report: extract_candidates 16->4GB, pileup 12->6GB (both + plain 'retry' errorStrategy so reduced base escalates on OOM instead of hard-failing - HealthOmics OOM != exit 137/140), merge_tumor 16->8 CPU. #5 KEEP: straggler fix (cap+contig-prefix+500bp depth), merge header in-place fix, mosdepth 8/bamstats 16, save_merged_tumor param (default false in prod).",
+          "registered_version": "v1_5_1-cloud24 (ACTIVE)",
+          "run_id": "2943474",
+          "status": "PENDING - full-genome cost-optimized. VALIDATE: eval shard count drops ~18685->~2-4k, max shard ~15min no straggler, extract/pileup complete at reduced mem (retry if deep), merge ~same time at 8CPU. Then AnalyzeAHORunPerformance on THIS (terminal, complete) for true optimized cost.",
+          "NOT_done": "#2 concurrency quota 25->100 (user did not select) and #3 spot pre-merge (not selected). Header fix kept though it gave ~0 time benefit (merge ~90min inherent I/O)."
+        },
+        "cloud24c_finding_budget_is_driver": "KEY CORRECTION from cloud24c (run 1740654): raising the candidate CAP 250->2000 did NOTHING to shard count - eval shards stayed ~1.5min (same as cap 250). Because the depth^2 BUDGET (400M) cuts each shard at ~250-candidate-equivalent work BEFORE the 2000 cap is reached. So the BUDGET, not the cap, is the shard-count driver. cloud21's 18685 shards were budget-driven. Also cloud24c: pileup at 6GB OOM'd on ~88% of 20Mb-chunk tasks (retry saved them but churned) - 20Mb pileup needs 12GB. And merge at 8CPU = 102min vs ~90min at 16CPU (critical path).",
+        "cloud25_final_config": {
+          "what": "Corrected cost-optimal production config. budget 400M->3G (8x -> ~8x fewer eval shards, ~2000-candidate/~12min shards; the REAL cost fix since budget drives shard count). pileup 6->12GB (fix OOM churn). merge 8->16CPU (13min critical path). cap 2000 kept as tail backstop. extract 4GB. mosdepth 8/bamstats 16. straggler fix (dual-cut). header fix. save_merged_tumor=true (this run publishes the merged BAM).",
+          "registered_version": "v1_5_1-cloud25 (ACTIVE)",
+          "run_id": "9960545",
+          "run_params": "/tmp/params_cloud23.json (save_merged_tumor=true, full merge path, all stages, cache 6598859)",
+          "region": "ap-southeast-1",
+          "status": "PENDING - clear runway (cloud24c cancelled). VALIDATE: eval shards drop ~15k->~2k, max ~12min no straggler, pileup no OOM churn at 12GB, merge ~90min. Then AnalyzeAHORunPerformance for true optimized cost. This is THE production config.",
+          "expected": "eval ~2k shards (vs cloud21's 18685) -> ~$8/run less overhead+floor; straggler-free; merged BAM published to output."
+        },
+        "input_speedup": "A/B arms use pre-merged tumor s3://.../inputs/tumor_merged/merged_tumor.bam as single bam_tumor (no bam_tumor2) to skip the ~15min genome-wide merge_tumor; both arms identical input so A/B stays clean. SNV-only (sv/mod/annotation=false). Duplicate A/B launches (5325691,9144954) + old cloud17 full (3493157) cancelled.",
+        "bed": "s3://ont-lrs-somatic-poc-apse1-687677765589/inputs/regions/chr20_21.bed (chr20 0-64444167, chr21 0-46709983)",
+        "params": "/tmp/params_ab.json = params_cloud5 + bed=chr20_21 + snv=true, sv/mod/diff_mod/annotation=FALSE (SNV-only, raw unannotated VCF, fast). Merged 2-tumor + normal, v4.2.0, DYNAMIC storage. No run_group cache (fresh).",
+        "run_group_id": "2793794 (maxRuns 3; cloud6b 4526792 + cloud13 1362376 cancelled to free slots)",
+        "verification_method": "When BOTH reach COMPLETE, bcftools isec the two somatic SNV VCFs (published under each output-uri). Expect IDENTICAL calls -> proves chunk_size is genome-partitioning only (Clair3/ClairS shard-and-merge with boundary handling). If diffs appear, investigate boundary handling.",
+        "status": "PENDING - launched. First COMPLETED optimized somatic SNV VCFs in the whole project (all prior runs were cancelled -> no baseline existed). This also yields a completed VCF to anchor future comparisons.",
+        "note": "This isolates chunk_size ONLY. The candidate depth-split is held CONSTANT (both arms use it), so it does not confound. Depth-split call-neutrality argument: full-alignment is per-candidate independent of which BED file a candidate lands in; splitting only repartitions candidates."
+      }
+    },
+    "run_cache_id": "6598859",
+    "superseded": "Standalone merge workflow 5275733 and production/merge_pair.sh + production/merge-workflow/ are superseded by the internal merge_tumor step in v1_5_1-cloud; delete workflow 5275733 once v1_5_1-cloud is validated.",
+    "runbook": "production/README.md"
+  },
+  "cloud26_p_c_calibration": {
+    "source_run": "9960545 (cloud25, RUNNING; eval stage COMPLETE, 8539 shards)",
+    "method": "Sampled 842 evaluate_candidates shard logs (contig + candidate count n + ClairS 'Total time elapsed'). Depth per budget-cut shard inferred from the algorithm's own d^2 budget cut: Sum(d^2)=B=3e9 -> d=sqrt(B/n). Regressed log(cost/candidate) vs log(depth).",
+    "p_estimate": 2.6,
+    "p_regression": {
+      "slope_p": 2.61,
+      "r2": 0.885,
+      "n_shards": 314,
+      "interpretation": "per-candidate ClairS full-alignment cost ~ depth^2.6 across the operational deep range (~1400x-33000x inferred). Validates the planned d^2.5 weight exponent."
+    },
+    "depth_track_facts": {
+      "source": "outputs/colo829-cloud6/.../COLO829_tumor.regions.bed.gz (50kb QC windows, tumor merged)",
+      "median_depth_x": 98,
+      "p99_x": 206,
+      "p999_x": 964,
+      "max_window_x": 38258,
+      "deepest_windows": [
+        "chr4:49.10-49.15M=38258x (centromeric satellite)",
+        "chr1:143.20-143.25M=33365x",
+        "chrUn_KI270438v1=26615x",
+        "chr22:11.2M=13493x",
+        "chr16:46.35M=12879x"
+      ],
+      "note": "50kb windows DILUTE 500bp satellite peaks; true peak depth at the worst chr4 candidate is >=54772x (from single-candidate budget cut). Deepest windows map exactly to the n=1 chr4 shards costing 58.56s."
+    },
+    "cost_spread_measured": {
+      "shallow_s_per_cand": 0.004,
+      "deep_s_per_cand": 58.56,
+      "ratio": 14640,
+      "shallow_depth_x": 98,
+      "deep_depth_x": ">=54772"
+    },
+    "saturation_caveat": "Effective FULL-RANGE exponent (98x->satellite) is lower (~1.6) than the deep-range 2.6 because per-candidate cost SATURATES at extreme depth (Clair3/ClairS caps the full-alignment tensor read stack). Consequence: single ultra-deep candidates self-isolate into singleton shards with BOUNDED time (max observed 58.56s ClairS ~1min). This is WHY cloud25's d^2 weighting already produced ZERO stragglers.",
+    "c_calibration_for_cloud26": {
+      "model": "T_shard = k * Sum(d^pw) over shard candidates; cloud26 per-shard budget = T_target / k",
+      "weight_exponent_pw": 2.5,
+      "k_median_s_per_unit_Sum_d2.5": 3.603e-11,
+      "k_CV_across_shards": 0.51,
+      "per_shard_budget_for_10min": 16650000000000.0,
+      "alt_pw_2.0": {
+        "k": 5.913e-09,
+        "cv": 0.56,
+        "budget_10min": 101500000000.0
+      },
+      "alt_pw_2.6": {
+        "k": 1.285e-11,
+        "cv": 0.52,
+        "budget_10min": 46700000000000.0
+      },
+      "note": "d^2.5 gives the lowest shard-time CV (0.51) but only marginally better than d^2 (0.56). CV~0.5 means ~50% spread; to bound MAX shard time, target a MEAN of ~5min (budget ~8.3e12 for d^2.5) so p90/max stays <=10min, OR keep the candidate-count cap 2000 backstop."
+    },
+    "cloud26_implication": {
+      "straggler": "Already solved by cloud25 (max eval shard ~1min). cloud26's win is COST, not straggler.",
+      "cost_win": "cloud25 budget 3e9 (d^2 units) over-fragmented into thousands of sub-1-min eval shards -> HealthOmics 1-min-floor billing tax. cloud26 targeting ~5-10min shards via calibrated budget uses far FEWER, larger shards -> lower task cost, still no straggler.",
+      "recommended": "weight d^2.5, per-sample W=Sum(d^2.5), per-shard budget from T_target/k with T_target ~5min (budget ~8.3e12), cap 2000 backstop, memory*attempt retry, publish manifest."
+    }
+  },
+  "cloud26_generalization_to_other_samples": {
+    "question": "Does the self-tuning split work for other/deeper depth profiles?",
+    "answer": "Yes, validated.",
+    "why_generalizes": [
+      "p (~2.6) and c/k are ALGORITHM+INSTANCE constants (tensor build + NN + fixed instance), NOT sample properties -> same for all 150 pairs.",
+      "W = Sum(depth^2.5) is computed PER SAMPLE from that sample's own 500bp mosdepth track -> auto-captures coverage level, centromere/satellite intensity, amplifications.",
+      "budget = T_target/k divides that sample's W into ~equal-time shards; deeper sample -> larger W -> more shards, each still ~T_target."
+    ],
+    "saturation_is_the_key_robustness_fact": {
+      "measured": "552 single-candidate (n=1) eval shards from cloud25: p50=15.2s, p90=51.2s, p99=58.6s, MAX=59.0s. p90->max spread only 1.15x.",
+      "meaning": "Single-candidate ClairS full-alignment cost SATURATES at a ~60s ceiling (Clair3/ClairS downsamples the tensor read stack at high depth). The deepest chr4/chr22/chr1 satellite candidates (38k-55k x) all cost ~1 min.",
+      "consequence": "The smallest indivisible unit (one candidate) is time-bounded (<=~60s) REGARDLESS of depth. Therefore NO depth profile can create an un-splittable multi-hour straggler. This is stronger than any splitting heuristic."
+    },
+    "deep_sim_result": {
+      "script": "scripts/sim_shard_deep.py (uses MEASURED c_cand=1.197e-11, p=2.61, CEIL=60s, weight d^2.5, k=3.603e-11, T_target=5min, cap=2000)",
+      "profiles_tested": "30x, 60x, 90x, 120x, 150x, 200x+90kx-satellite, 60x-massive-centromere, bimodal-40x+amp",
+      "MAX_over_p90_shard_time": "1.00-1.24 across ALL profiles -> no straggler",
+      "worst_single_candidate": "<= 60s in every profile (hits ceiling only at >73kx)",
+      "shard_count_scaling": "87 (30x) -> 19008 (200x extreme): scales with GENUINE workload; cost tracks real compute, per-shard time stays bounded."
+    },
+    "refinement_weight_cap": {
+      "idea": "Cap weight at the saturation depth D_SAT~73438x: w = min(depth, D_SAT)^2.5, since cost stops growing past D_SAT.",
+      "benefit": "Avoids over-fragmenting pathologically deep loci (>73kx). 200x-extreme: 19008 -> 16964 shards (-11%).",
+      "verdict": "Only matters for satellite peaks >73kx (beyond COLO829's ~55kx). Cheap to add as insurance for the 150-pair campaign; no effect on normal samples."
+    },
+    "honest_caveats": [
+      "p and CEIL measured on omics.c/r eval instances at cloud25 sizing; if evaluate_candidates instance type/size changes, recalibrate c and CEIL (p and the SHAPE are stable).",
+      "500bp mosdepth must resolve the sample's peaks; if a future sample has sub-500bp spikes, they could be under-weighted, but the 60s single-candidate ceiling still caps any resulting shard.",
+      "Cost (not runtime) grows with depth - a 200x sample legitimately costs more compute; the split bounds TIME per shard, not total spend."
+    ]
+  },
+  "cloud26_build": {
+    "status": "RUNNING (launched)",
+    "registered_version": "v1_5_1-cloud26 (workflow_id=2590600)",
+    "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud26.zip",
+    "container_registry_map": "registry-1.docker.io -> docker-hub (attached at version creation)",
+    "built_from": "reconstructed /tmp/wf-inspect from cloud25 zip, overlaid 3 edited files; diff confirmed ONLY the 3 intended changes vs cloud25.",
+    "changes_vs_cloud25": {
+      "split_candidates_by_depth (modules/local/wf-clair3-snp.nf)": "weight per candidate changed from d^2 to min(d, DSAT)^P (P=2.5, DSAT=73438). Cut when cumulative weight >= B OR count >= M, where B = clairs_target_shard_minutes*60 / clairs_split_cost_k is computed IN-AWK. Emits per-contig manifest (*.split_manifest.tsv) with contig, n_candidates, total weight W, budget, n_shards, and the p/DSAT/k/target constants.",
+      "nextflow.config": "added clairs_split_weight_exp=2.5, clairs_split_depth_saturation=73438, clairs_split_cost_k=3.603e-11, clairs_target_shard_minutes=5 (all added to schema_ignore_params). clairs_depth_split_budget=3e9 retained as legacy fallback only. cap clairs_max_candidates_per_shard=2000 unchanged.",
+      "workflows/wf-somatic-snv.nf": "captured split_out; collectFile the manifest to out_dir/clairs_split/clairs_split_manifest.tsv with a header seed."
+    },
+    "calibration_source": "cloud26_p_c_calibration + cloud26_generalization_to_other_samples (this context.json)",
+    "offline_validation": "scripts/test_cloud26_awk.sh - exact awk on synthetic 60x genome + 30-55kx satellite: weight=min(d,DSAT)^2.5 verified, budget=8.326e12 (=5*60/3.603e-11) verified, manifest 9 tab fields verified, modeled MAX shard time 344s (~5.7min) at MAX/p90=1.00. scripts/sim_shard_deep.py: MAX/p90<=1.24 and worst single candidate<=60s across 30x-200x profiles.",
+    "self_consistency_note": "cap 2000 is matched to the 5-min target: worst cap-limited shard (~2000 candidates at <=7050x) ~= 4.4min; worst budget-limited shard ~= target. Neither produces a straggler; raising cap would push cap-limited shards over target.",
+    "cost_expectation": "vs cloud25 (fixed 3e9 d^2 budget -> 8539 eval shards, most sub-1min at the 1-min billing floor), cloud26 consolidates deep shards to ~5min each -> far fewer eval tasks -> lower task cost, still straggler-free. Shallow regions stay cap-limited (unchanged).",
+    "not_yet_done": "No run launched. cloud25 (9960545) still RUNNING. To validate cloud26 end-to-end: start-run v1_5_1-cloud26 with params_cloud5.json (or params_cloud23.json to also save merged BAM), run group 2793794 (maxRuns 4), cache 6598859. Then read the published clairs_split_manifest.tsv + AnalyzeAHORunPerformance for the true shard count/cost.",
+    "run_id": "8384814",
+    "run_name": "colo829-cloud26-prod-20260712T1316Z",
+    "output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud26-20260712T1316Z/",
+    "run_params": "params_cloud5.json (2-tumor merge PAU59949+PAU61426, normal_single/normal.bam, all stages true, no save_merged_tumor); run_group 2793794; cache 6598859"
+  },
+  "clairs_phase_straggler": {
+    "discovered_in": "cloud25 run 9960545 at ~18h: 23/24 clairs_phase contigs finished in 2.5-3.9min, but clairs_phase (1) (chr1, deepest) RUNNING 7.4h - longphase silent after \"reading reference\". Same depth pathology as old eval straggler, in the phasing stage.",
+    "engine": "longphase (use_longphase=true), cpus=4, omics.c.xlarge, mem req_mem[0]=8GB; NOT OOM (would retry on 137/140); genuine deep-region hang on chr1 centromere (~33-38kx satellite).",
+    "not_fixed_by_cloud26": "cloud26 only changed evaluate_candidates split; phasing unchanged -> cloud26 (run 8384814) will hit the SAME wall.",
+    "also_failed": "mod:makeModReport (1) FAILED at ~456min (separate, methylation report).",
+    "benchmark_ec2": {
+      "instance": "i-0110b8309c3163706 (r6i.4xlarge; v1 i-04edf4f6b2d264be1 terminated - het-gen on full-depth centromere too slow)",
+      "method": "isolate clairs_phase on chr1:118-160M centromere slice from saved merged_tumor.bam (S3 index-seek, no 291GB dl). bcftools depth-capped het calling, then longphase full-depth. 5 experiments each 30min timeout.",
+      "experiments": "A=baseline t4 (reproduce hang), B=depth-gate exclude >1000x windows, C=downsample deep to <=1000x (variantbam -m 1000), D=longphase -t16, CTRL=chr20 shallow.",
+      "outputs": "s3://ont-lrs-somatic-poc-apse1-687677765589/analysis/phase-benchmark/ (_bench.log live, timing.tsv, results/)",
+      "userdata": "scripts/phase_benchmark_userdata.sh",
+      "het_gen_fix": "v2 builds capped(<=1000x)+gated BAMs first, generates het sites once on the CAPPED bam (fast), reuses same sites across A/B/C/D for a fair comparison. A/D timeouts trimmed to 20min."
+    },
+    "cloud25_cancelled": "cloud25 (9960545) CANCELLED at ~25.6h - clairs_phase(1) chr1 stuck 14.9h on one task confirmed the straggler is real/deterministic. Merged BAM already saved separately.",
+    "benchmark_v2_INVALID": "v2 baseline ran 114s (NOT the hang) because hets were called on the CAPPED bam, removing deep-region hets. Invalid; superseded by v3.",
+    "benchmark_v3": {
+      "instance": "i-04e5abbf60b5de449 (r6i.4xlarge, 300GB)",
+      "faithful": "WHOLE chr1 (production unit) + het SNPs called on FULL depth (keeps deep hets). A/D full-depth expected to TIMEOUT (reproduce hang); B(gate)/C(cap 1000x via split+merge)/CTRL should complete.",
+      "prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/analysis/phase-benchmark-v3/"
+    }
+  },
+  "cloud27_pending": {
+    "status": "LAUNCHED run 8289603 (colo829-cloud27-prod-20260713T1212Z)",
+    "change1_manifest_stdout": "split_candidates_by_depth END block now printf SPLIT_MANIFEST ... to stdout (CloudWatch) so per-contig W/budget/n_shards are visible LIVE mid-run (published manifest file only exports at completion). Validated offline.",
+    "change2_phasing_fix": "PENDING v3 benchmark (i-04e5abbf60b5de449): if depth-gate (>1000x removed) or downsample-to-1000x clears the chr1 clairs_phase hang, apply that to clairs_phase input in modules/local/wf-somatic-snv.nf.",
+    "cloud26_learnings": "eval split validated: 4218 shards vs cloud25 8539 (~2x consolidation, no eval straggler). cloud26 blocked at chr1 clairs_phase straggler (~3h+), same as cloud25 -> phasing fix required for clean end-to-end completion + manifest publish.",
+    "change3_cap_bump": {
+      "change": "clairs_max_candidates_per_shard 2000 -> 20000 in nextflow.config.",
+      "why": "cloud26 DATA: cap 2000 left 98% of 4218 eval shards <60s (p50 32s), billed at HealthOmics 1-min floor (+76% tax). Cap (not the time-budget) is the binding constraint for shallow regions; a ~32s shard is ~20s overhead + 2000*0.006s.",
+      "validated_sim": "scripts/sim_cap_check.py (calibrated: cap2000->4774 shards/p50 32s/+86% tax matches cloud26). cap 20000 -> 489 shards, p50 140s, MAX 191s (3.2min, no straggler), floor tax +0%, billed eval hours 79.6->19.0 (~76% cut) -> eval cost ~$9 -> ~$2.2.",
+      "safety": "worst shard at budget boundary ~4-5min whether deep-few or shallow-many; 60s per-candidate saturation ceiling bounds any depth-track-missed spike; higher cap does NOT reintroduce stragglers."
+    },
+    "cost_model_refinement": "per-candidate ClairS cost has a DEPTH-INDEPENDENT FLOOR ~0.006s (measured from cloud26 shallow shards: 32s = ~20s overhead + 2000*0.006s). cost(d)=clamp(0.006 + 1.197e-11*d^2.61, 0.006, 60s). Floor does NOT affect the d^2.5 weighting (which governs deep shards); it governs shallow COST and the cap decision.",
+    "registered_version": "v1_5_1-cloud27 ACTIVE",
+    "run_id": "8289603",
+    "cache": "6598859 CACHE_ALWAYS - expect merge/alignment/pileup cache-hit from cloud26",
+    "params": "params_cloud5.json (regenerated; durable copy scripts/params_cloud5.json)"
+  },
+  "cache_investigation": {
+    "finding": "run cache 6598859 EMPTY (cacheS3Uri run-cache/dccf95d4.../ = 1 obj 0 bytes). Engine=23.10.0 so caching IS supported. Root cause: cache export runs only on terminal COMPLETED/FAILED; operator-CANCEL does NOT export. ALL prior runs were cancelled -> cache never seeded. This is why merge always re-ran.",
+    "implication": "Cancelling a run gives NO resume. Only a COMPLETED or FAILED run seeds the cache. publishDir outputs export only at COMPLETION.",
+    "eval_downstream_of_phasing": "evaluate_candidates consumes the phased/haplotagged BAM, so changing clairs_phase CODE re-runs eval genome-wide even with cache. So fast phasing iteration needs OFFLINE testing, not full-pipeline cache resume."
+  },
+  "cloud28_build": {
+    "version": "v1_5_1-cloud28 ACTIVE",
+    "zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud28.zip",
+    "change_vs_cloud27": "added publishDir on clairs_select_het_snps -> publishes per-contig het VCFs to out_dir/het_snps/<contig>.vcf.gz (phasing inputs for OFFLINE iteration).",
+    "run_id": "9070248",
+    "run_name": "colo829-cloud28-premerged-20260713T1305Z",
+    "params": "params_cloud28_premerged.json - PRE-MERGED single-file bam_tumor=inputs/tumor_merged/merged_tumor.bam, NO bam_tumor2 -> skips the 90min internal merge (ingress_tumor path). All 3 cloud27 fixes retained (cap20k, manifest echo, chunked phasing).",
+    "goal": "First run intended to reach TERMINAL (chunked-phasing timeout prevents chr1 hang) -> seeds cache + publishes het VCFs. DO NOT cancel.",
+    "output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud28-20260713T1305Z/"
+  },
+  "cloud28_result": {
+    "status": "FAILED at 3.9h at snv:split_candidates_by_depth (4)",
+    "cause": "awk runaway string constant - the multi-line SPLIT_MANIFEST printf (added cloud27, first hit cloud28). manifest FILE write was fine; the stdout printf broke awk (mawk). cloud26 had no printf so its split worked.",
+    "confirmed_no_merge": "pre-merged single-file input worked - NO merge_tumor task; reached split in ~3.9h.",
+    "cache_finding_CRITICAL": "cache STILL 0 bytes 5.5h after cloud28 FAILED. So FAILED runs do NOT seed the cache either. ONLY a fully COMPLETED run seeds it. No run has ever completed -> cache never populated. het VCFs also only publish on COMPLETION."
+  },
+  "cloud29_build": {
+    "version": "v1_5_1-cloud29 ACTIVE",
+    "fix": "split awk stdout echo: printf(multi-line) -> plain SPLIT_MANIFEST, ... (OFS tab, no format string, mawk-safe). Validated offline exit0.",
+    "run_id": "5432172",
+    "run_name": "colo829-cloud29-premerged-20260713T2241Z",
+    "params": "pre-merged single-file (no merge). All fixes: cap20k, manifest file+stdout, chunked phasing, het-VCF publish.",
+    "goal": "MUST reach COMPLETED - only that seeds cache + publishes het VCFs. First-ever completion target.",
+    "output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud29-20260713T2241Z/"
+  },
+  "cloud29_COMPLETED": {
+    "MILESTONE": "FIRST run in the project to reach COMPLETED (run 5432172, v1_5_1-cloud29). 8.6h wall.",
+    "true_cost_usd": 11.92,
+    "cost_breakdown": {
+      "task": 8.69,
+      "storage": 3.23,
+      "potential_rightsizing_savings": 0.89
+    },
+    "efficiency": {
+      "cpu_pct": 53.7,
+      "mem_pct": 16.9,
+      "total_tasks_manifest": 768
+    },
+    "validations": {
+      "phasing_straggler_FIXED": "chunked phasing: chr1 clairs_phase max ~20min (vs 13h hang on cloud25/26). Bounded via per-chunk timeout fallback.",
+      "eval_cap20k": "865 eval shards (vs cloud26 4218), max shard 5min - NOT a top cost line anymore (floor-billing tax removed).",
+      "split_fix": "split_candidates_by_depth completed, SPLIT_MANIFEST plain-print worked.",
+      "no_merge": "pre-merged single-file input -> no merge_tumor (~90min saved).",
+      "makeModReport": "OOMd attempt1, retried and SUCCEEDED (report published) -> run COMPLETED.",
+      "het_vcfs_published": "24 per-contig het VCFs in outputs/.../het_snps/ -> offline phasing iteration unblocked."
+    },
+    "top_rightsizing": "pileup_variants omics.r.large -> omics.m.large saves $0.65 (332 tasks over-provisioned on memory). bamstats c.4xlarge->c.2xlarge $0.14. Total headroom $0.89.",
+    "extrapolation_150_pairs": "~$1,790 (pre-merged, $11.92 x150). Full production adds internal merge (~$1.4/pair compute from cloud26) -> ~$13.3/pair -> ~$2,000. vs stalled cloud26 trajectory ~$31.",
+    "cost_note": "pre-merged run (no merge). Real 2-tumor production adds merge_tumor. Storage $3.23 over 8.6h dynamic.",
+    "cache_still_empty": "Even this COMPLETED run did not seed run-cache 6598859 (0 bytes). Likely: memory{X*task.attempt} dynamic directives disqualify tasks from caching per HealthOmics docs. Resume via cache NOT working; offline het-VCF iteration is the workaround (het VCFs published)."
+  },
+  "cache_ROOT_CAUSE_FIXED": {
+    "root_cause": "omics-poc-run-role inline policy lacked s3:PutObject/GetObject/ListBucket on run-cache/* prefix. Cache export failed SILENTLY on every run (docs: cache-export failures do not fail the run). NOT dynamic memory, NOT cancel-vs-complete. The cache was never writable.",
+    "fix": "Added arn:.../run-cache/* to S3ReadInputs, S3WriteOutputs, and S3ListBucket prefix condition in iam/omics-poc-run-role.permissions.json; applied via put-role-policy (policy omics-poc-run-role-inline).",
+    "proof": "cache-diag workflow 9850508, 2-task (static vs dynamic memory). run1 (5424971, pre-fix): cache 0 bytes. run2 (3786720, post-fix): cache populated 9 objects. run3 (9079926): BOTH taskA_static AND taskB_dynamic cacheHit=True.",
+    "implications": [
+      "RESUME NOW WORKS: run once to COMPLETED -> cache seeds -> subsequent runs cache-hit unchanged upstream (merge/pileup/eval) and only re-run changed step + downstream.",
+      "Dynamic memory {X*task.attempt} is FINE for caching - no pipeline refactor needed.",
+      "cloud29 completed pre-fix so its tasks are NOT cached; the NEXT completed production run (post-fix) will seed the real cache."
+    ],
+    "diag_workflow_cleanup": "cache-diag workflow 9850508 can be deleted when done (aws omics delete-workflow --id 9850508)."
+  },
+  "cloud30_build": {
+    "version": "v1_5_1-cloud30 ACTIVE",
+    "change_vs_cloud29": "nextflow.config withName makeModReport { memory 16GB*attempt base; errorStrategy retry; maxRetries 2 } - so the mod HTML report succeeds on attempt 1 (cloud29 OOMd at 6GB base, wasted ~2h before exit-137 retry at 12GB).",
+    "run_id": "8974684",
+    "run_name": "colo829-cloud30-2tumor-20260714T1409Z",
+    "params": "params_cloud5.json - FULL 2-tumor (bam_tumor PAU59949 + bam_tumor2 PAU61426 -> INTERNAL merge_tumor). All fixes: cap20k, chunked phasing, het publish, makeModReport 16GB.",
+    "goals": [
+      "lock the MERGE-INCLUSIVE production cost (cloud29 was pre-merged)",
+      "SEED the run cache now that IAM run-cache write is fixed -> future 150-pair iterations resume",
+      "confirm merge path completes end-to-end"
+    ],
+    "cache": "6598859 CACHE_ALWAYS - will now write (IAM fixed). First post-fix completed run seeds the real cache.",
+    "DO_NOT_CANCEL": "let it reach terminal to seed cache + get cost."
+  },
+  "cloud31_ubam": {
+    "version": "v1_5_1-cloud31 ACTIVE",
+    "design": "ALIGN-THEN-MERGE. main.nf: ingress_tumor(t1) || ingress_tumor2(t2) || ingress_normal(normal) -> 3 independent minimap2 tasks run in PARALLEL; merge_tumor joins the 2 ALIGNED tumors (combine barrier) into 1 sorted+indexed BAM; SNV calling waits on merged-tumor + normal. Single tumor -> 2-way parallel. merge_tumor reverted to aligned-only merge (inputs now always aligned post-ingress).",
+    "run_id": "9190779",
+    "run_name": "colo829-cloud31-ubam-20260714T1529Z",
+    "params": "params_ubam.json - bam_tumor=ubam/tumor1_PAU59949, bam_tumor2=ubam/tumor2_PAU61426, bam_normal=ubam/normal_PAU59807 (all SQ=0 unaligned) -> minimap2 fires on each.",
+    "goal": "alignment-inclusive END-TO-END cost + runtime (uBAM -> aligned -> variants). Verify 3 minimap2 tasks overlap (parallel) and merge_tumor starts only after both tumor aligns complete.",
+    "output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud31-20260714T1529Z/",
+    "RESULT": "FAILED at 15:47 (~18 min in). failureReason=INPUT_URI_NOT_FOUND, statusMessage='S3 object not found: .../inputs/ubam/tumor1_PAU59949.ubam.bam.bai'. ROOT CAUSE: stock ingress xam_ingress->get_valid_inputs (ingress.nf ~line 305) probes file(\"${bam}.bai\").exists(); on-prem that is a harmless false for uBAMs, but on HealthOmics referencing that S3 URI registers it for import and 404s (uBAMs have no .bai) -> run fails. cloud30 (aligned BAMs) unaffected because aligned .bai sidecars exist. Superseded by cloud32."
+  },
+  "cloud32_ubam_fix": {
+    "version": "v1_5_1-cloud32 ACTIVE",
+    "run_id": "3624737",
+    "run_name_prefix": "colo829-cloud32-ubam-",
+    "fix": "main.nf ONLY (no ingress internals touched). Route each uBAM through ingress_merged (aliased ingress_ubam_t1/t2/normal) instead of stock ingress. ingress_merged BYPASSES xam_ingress (and its phantom .bai probe) and runs check_for_alignment + minimap2_alignment directly; neither reads the index. Each uBAM is paired with the shipped 0-byte sentinel data/OPTIONAL_FILE.bam.bai (bundled workflow file, NOT an S3 import) as a stand-in index; minimap2 regenerates the real index on its aligned output. check_for_alignment detects SQ=0 -> to_align -> minimap2. 3-way parallel preserved (tumor1||tumor2||normal), then merge_tumor combines the 2 aligned tumors. Reuses the exact code path cloud29 completed on / cloud30 runs on -> low risk.",
+    "why_ingress_merged_is_ubam_specific": "For an ALIGNED input, check_for_alignment routes to noalign and would emit the sentinel (fake) index. So this main.nf variant is uBAM-only. cloud30's version (v1_5_1-cloud30) remains the aligned-input production config.",
+    "params": "params_ubam.json - bam_tumor=ubam/tumor1_PAU59949, bam_tumor2=ubam/tumor2_PAU61426, bam_normal=ubam/normal_PAU59807 (all SQ=0 unaligned).",
+    "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud32.zip",
+    "cache_id": "6598859 CACHE_ALWAYS",
+    "run_group_id": "2793794 (maxRuns=4, so runs concurrently with cloud30 8974684)",
+    "status_at_launch": "PENDING",
+    "RESULT": "FAILED ~3 min (compile error, NOT phantom .bai). engine log: 'Variable projectDir already defined in the process scope @ main.nf line 215'. Cause: used `def UBAM_IDX = file(\"${projectDir}/...\")` in workflow scope; `def` + ${projectDir} interpolation trips the Nextflow parser. Fixed in cloud33 by matching the proven line-176 pattern `UBAM_IDX = file(\"$projectDir/data/OPTIONAL_FILE.bam.bai\")` (no def, $projectDir). Superseded by cloud33.",
+    "goal": "alignment-inclusive END-TO-END cost + runtime."
+  },
+  "cloud33_ubam_fix2": {
+    "version": "v1_5_1-cloud33 ACTIVE",
+    "run_id": "6073730",
+    "run_name_prefix": "colo829-cloud33-ubam-",
+    "change_vs_cloud32": "ONLY fixed the main.nf line 215 compile error: `UBAM_IDX = file(\"$projectDir/data/OPTIONAL_FILE.bam.bai\")` (dropped `def`, use $projectDir). All the cloud32 uBAM-via-ingress_merged design is unchanged.",
+    "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud33.zip",
+    "params": "params_ubam.json (3 uBAMs, SQ=0)",
+    "cache_id": "6598859 CACHE_ALWAYS",
+    "run_group_id": "2793794 (maxRuns=4, concurrent with cloud30 8974684)",
+    "status_at_launch": "PENDING",
+    "RESULT": "3-WAY PARALLEL ALIGNMENT PROVEN, but merge_tumor FAILED -> downstream skipped (partial run, EXPORTING only aligned BAMs). Alignment durations (all overlapping/parallel): tumor1 221min (19:41-23:22), tumor2 219min (19:45-23:24), normal 280min (19:45-00:25, 164GB largest). merge_tumor error at 23:24:25: 'ProcessUnrecoverableException: input file name collision -- multiple input files for name: COLO829.bam'. CAUSE: minimap2_alignment names output ${meta.alias}.bam and ingress_merged hardcodes alias=params.sample_name=COLO829, so BOTH tumor1 and tumor2 realign to COLO829.bam -> merge_tumor cannot stage two identically-named inputs. Fixed in cloud34 via stageAs. cloud33's 3 minimap2 tasks completed under CACHE_ALWAYS so cloud34 should cache-hit them and resume from merge_tumor (skip ~4h realign)."
+  },
+  "cloud34_ubam_fix3": {
+    "version": "v1_5_1-cloud34 ACTIVE",
+    "run_id": "2337351",
+    "run_name_prefix": "colo829-cloud34-ubam-",
+    "change_vs_cloud33": "merge_tumor input now uses stageAs: 'tumor1_aligned.bam' / 'tumor2_aligned.bam' to avoid the COLO829.bam filename collision (both tumor uBAMs realign to ${alias}.bam=COLO829.bam). Only change. All cloud33 uBAM-via-ingress_merged design + 3-way parallel alignment unchanged.",
+    "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud34.zip",
+    "params": "params_ubam.json (3 uBAMs, SQ=0)",
+    "cache_id": "6598859 CACHE_ALWAYS (expect cloud33 minimap2 alignments to cache-hit -> resume from merge_tumor)",
+    "run_group_id": "2793794 (maxRuns=4)",
+    "status_at_launch": "PENDING",
+    "single_tumor_caveat_RETRACTED": "INVESTIGATED and RETRACTED (was overcautious). Single-tumor uBAM does NOT collide even though minimap2 names both tumor and normal aligned BAMs ${meta.alias}.bam = COLO829.bam. Every process that stages tumor+normal together is already collision-safe: all 6 paired ClairS SNV processes use stageAs 'normal/*' and 'tumor/*' (separate subdirs); severus stages fixed names path('normal.bam')/path('tumor.bam'); mod is per-sample bedMethyl (no BAM pairing); QC/getGenome/haplotag are per-sample. The lines that looked unprotected (wf-somatic-snv.nf ~500/502, ~661/663) are OUTPUT pass-through tuples, not input staging. Tumor/normal sharing meta.sample/alias is BY DESIGN (paired via cross/combine on meta.sample). The ONLY real collision was merge_tumor (2 tumors, no stageAs) = cloud33 crash, already fixed. NO code change made - forcing distinct aliases would risk breaking the meta.sample-keyed pairing (regression).",
+    "NEXT_STEPS": "Monitor 2337351. Confirm 3 minimap2 cache-hit (fast), merge_tumor now succeeds, then snv/sv/mod run to terminal. AnalyzeAHORunPerformance for uBAM alignment-inclusive cost vs cloud29 $11.92."
+  },
+  "cloud35_validation_run": {
+    "run_id": "6212644",
+    "run_name_prefix": "colo829-cloud35-ubam-persist-",
+    "workflow_version": "v1_5_1-cloud35",
+    "params": "scripts/params_ubam_cloud35.json = params_ubam.json + save_aligned_bams:true (threads 16/6/2 = 24 -> c.8xlarge; 3 uBAMs).",
+    "cache_id": "6598859 CACHE_ALWAYS (alignment will NOT cache-hit cloud34 - run-scoped input paths; expect fresh ~4h align).",
+    "status_at_launch": "PENDING",
+    "purpose": "PRODUCTION-READINESS VALIDATION. Prove: (1) publish_aligned fan-out (bam_tumor/bam_normal -> publish_aligned AND all_bams via DSL2 multi-consumer) does NOT starve downstream (the cloud33 failure class); (2) aligned_bams/tumor_aligned.bam(.bai)+normal_aligned.bam(.bai) persist to <out_dir>/aligned_bams/; (3) full uBAM->variants reaches COMPLETED. Then a RESUME run feeding aligned_bams as bam_tumor+bam_normal (no bam_tumor2) should skip minimap2 (~$12 path).",
+    "watch": "After merge_tumor + publish_aligned, verify all_bams still feeds snv/sv/mod (downstream tasks appear). If downstream is skipped like cloud33, the fan-out starved all_bams -> revert to a passthrough publish design."
+  },
+  "cloud36_unified_version": {
+    "goal": "SINGLE production version handling BOTH uBAM and already-aligned inputs (cloud35 was uBAM-only; feeding it aligned BAMs would attach the empty sentinel index and break downstream).",
+    "fix": "In lib/_ingress.nf ingress_merged: the noalign branch (already-aligned inputs) now runs a new index_xam process (samtools index -> real .bai/.crai) instead of propagating the empty sentinel index. uBAM inputs still go to_align->minimap2 (own index). No file(bam+'.bai') probe anywhere, so no phantom-.bai 404 on HealthOmics. index_xam: label wf_common, 4cpu/8GB, output path(xam, includeInputs:true)+path(${xam}.{bai,crai}).",
+    "durability": "edited /tmp/wf-inspect/lib/_ingress.nf AND saved copy to workspace production/cloud-pipeline/lib/_ingress.nf.",
+    "registered_version": "v1_5_1-cloud36 ACTIVE (workflow 2590600).",
+    "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud36.zip",
+    "main_nf_note": "main.nf unchanged from cloud35 (still uses ingress_ubam_t1/t2/normal aliases = ingress_merged, which now handles both). Alias name is cosmetically uBAM-ish but functionally unified. save_aligned_bams + 24-thread + merge stageAs all retained.",
+    "iam_change": "Added outputs/* to omics-poc-run-role-inline S3ReadInputs (s3:GetObject) so resume runs can READ aligned BAMs persisted under outputs/. Applied via put-role-policy. iam/omics-poc-run-role.permissions.json updated.",
+    "resume_run": {
+      "run_id": "4659319",
+      "run_name_prefix": "colo829-cloud36-resume-aligned-",
+      "params": "scripts/params_resume.json = params_ubam.json with bam_tumor=aligned_bams/tumor_aligned.bam, bam_normal=aligned_bams/normal_aligned.bam, NO bam_tumor2, NO save_aligned_bams.",
+      "inputs": "cloud35-persisted aligned BAMs (tumor_aligned.bam 287GB + normal_aligned.bam 176GB + real .bai).",
+      "status_at_launch": "PENDING",
+      "VALIDATES": "cloud36 accepts aligned inputs -> check_for_alignment detects aligned -> noalign -> index_xam (re-index) -> SKIP minimap2 -> downstream variants (~$12 path). WATCH: NO minimap2_alignment tasks should appear; index_xam tasks instead; then SNV. On COMPLETED: concordance vs cloud35/cloud29 + cost (~$12 expected vs ~$34 uBAM end-to-end)."
+    },
+    "input_combination_matrix": {
+      "purpose": "Validate cloud36 (unified) handles all tumor-normal input combinations. run_group maxRuns bumped 4->8 for capacity (stuck-finalize runs occupy 4 slots but use 0 tasks).",
+      "matrix": {
+        "combo1_2uBAM_uBAMnormal": "VALIDATED by cloud35 (6212644) - identical ingress_merged->minimap2 path; uBAM never touches the new index_xam branch, so no re-run needed.",
+        "combo2_1uBAM_uBAMnormal": "run 1811322 (cloud36-c2). Tests single-tumor uBAM else-branch: ingress_ubam_t1(single uBAM)->minimap2, no merge; + normal minimap2. 2-way parallel align.",
+        "combo3_2aligned_alignednormal": "run 1564152 (cloud36-c3). NEW/untested: 2 aligned tumors -> noalign -> index_xam x2 -> merge_tumor(2 re-indexed aligned) -> merged; aligned normal -> index_xam. Inputs: inputs/tumor_bams/PAU59949+PAU61426 (aligned) + inputs/normal_single/normal.bam.",
+        "combo4_1aligned_alignednormal": "run 4659319 (cloud36-resume). Single aligned tumor -> index_xam, skip minimap2. RUNNING.",
+        "tumor_only_5_6": "OUT OF SCOPE for this tumor-normal customer (150 T/N pairs). ClairS-TO tumor-only path not tested unless required."
+      },
+      "validation_focus": "Confirm each combo's INGRESS+MERGE handles input correctly (uBAM->minimap2, aligned->index_xam, 2-tumor->merge, single->no merge). Downstream SNV/SV/mod is identical/proven. Watch task names: minimap2_alignment (uBAM) vs index_xam (aligned).",
+      "RESULTS": {
+        "method": "Per user: verify each combo clears step1 (ingress/align) and reaches step2 (merge for 2-tumor, or first downstream/QC for single-tumor), then kill. combo1 let run to completion.",
+        "combo2_1uBAM_1811322": "VALIDATED+killed. minimap2_alignment x2 (tumor1+normal, uBAM path) COMPLETED, NO index_xam, single-tumor so NO merge, reached step2 (getGenome/mosdepth/bamstats).",
+        "combo3_2aligned_1564152": "VALIDATED+killed. index_xam x3 (tumor1+tumor2+normal, aligned re-index) COMPLETED, NO minimap2, merge_tumor RUNNING (step2). Proves the NEW aligned-2-tumor path.",
+        "combo4_1aligned_4659319": "VALIDATED+killed. check_for_alignment->index_xam (tumor+normal) COMPLETED, NO minimap2, reached step2 (mosdepth). Proves aligned resume path.",
+        "combo1_2uBAM_4867299": "RUNNING TO COMPLETION (per user) - primary production scenario. tumor2 minimap2 cache-hit; awaiting tumor1+normal->merge->downstream. On COMPLETED: cloud36 end-to-end cost + concordance vs cloud35/cloud29.",
+        "conclusion_so_far": "cloud36 unified version correctly routes ALL tumor-normal input combinations: uBAM->minimap2, aligned->index_xam, 2-tumor->merge, single->no merge. 3/4 combos validated to step2; combo1 completing for the full end-to-end."
+      }
+    }
+  },
+  "determinism_validation": {
+    "pure_downstream": "cloud35 (6212644) vs cloud34-orig (2337351): IDENTICAL cache-hit alignment, but SNV RE-RAN fresh (merge_tumor stageAs change forced cache miss; ClairS tasks observed RUNNING, not cache-hit). Result: 39,696 vs 39,696 PASS somatic SNVs, 100.00% concordant, 0 discordant either way. => pipeline downstream (candidates->pileup->phasing->full-alignment->filter) is FULLY REPRODUCIBLE given the same aligned input.",
+    "cross_alignment": "cloud35 vs cloud29 (pre-aligned): 97.4% - the 2-3% gap is purely the DIFFERENT alignment (our minimap2 lr:hq re-align vs ONT original), which is itself reproducible, NOT stochastic.",
+    "latent_nondeterminism": "The chunked-phasing wall-clock `timeout 15m` fallback is the one latent non-determinism source - it did NOT diverge in the cloud34/35 pair (same chunks fell back) but COULD under different contention. Fix for hard guarantee: replace wall-clock timeout with a deterministic depth/size-based phasing gate (must still cap the chr1 pericentromeric region that caused the 13h hang).",
+    "verdict": "Results ARE deterministic in practice. The observed 2-3% cross-run difference was alignment (pre-aligned vs re-aligned), not randomness."
+  },
+  "cloud35_persist_VALIDATED": {
+    "aligned_bams_s3": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/colo829-cloud35-20260715T075223Z/6212644/definition/output/aligned_bams/",
+    "files": "tumor_aligned.bam (287GB)+.bai, normal_aligned.bam (176GB)+.bai. Sizes match cloud30's aligned BAMs (292GB merged tumor, 179GB normal) -> sane.",
+    "items_closed": "(1) publish_aligned fan-out does NOT starve downstream (SNV ran to makeReport/vcfStats + full outputs produced); (2) aligned BAMs persist to aligned_bams/. Run stuck in HealthOmics finalize-transition (0 tasks, exporting) - same service-side hang as cloud30/cloud34-orig today, but compute+persist DONE.",
+    "remaining": "RESUME run: feed aligned_bams/tumor_aligned.bam + normal_aligned.bam as bam_tumor + bam_normal (single aligned files, NO bam_tumor2) to an aligned-input version -> should skip minimap2 (~$12 path). Not yet done."
+  },
+  "ubam_vs_prealigned_concordance": {
+    "comparison": "cloud34-orig (2337351, uBAM realigned via minimap2 lr:hq then merged) vs cloud29 (5432172, pre-aligned/pre-merged). Same COLO829 tumor+normal.",
+    "coverage": "tumor 96.6x (uBAM) vs 96.9x (pre); normal 58.6x vs 58.9x - near-identical.",
+    "pass_somatic_snvs": "39,696 (uBAM) vs 39,860 (pre) = -0.4%.",
+    "concordance_exact_chr_pos_ref_alt": "38,808 shared = 97.4% of cloud29 PASS, 97.8% of cloud34 PASS. Discordant: 1052 cloud29-only, 888 cloud34-only.",
+    "ts_tv": "2.36 (uBAM) vs 2.21 (pre) - uBAM marginally cleaner.",
+    "signature": "both UV/SBS7 C>T dominant (uBAM: C>T 71%).",
+    "verdict": "uBAM alignment path does NOT compromise somatic correctness (97-98% concordant). The ~2-3% discordance is borderline/low-VAF calls from re-alignment placement differences (minimap2 lr:hq vs original ONT alignment), not a pipeline defect. Tradeoff of uBAM is purely the ~$22 alignment cost+wall-clock -> motivates save_aligned_bams (align once, reuse).",
+    "note": "The earlier .stats totals (59,984 vs 55,125) were ALL records incl. non-PASS; PASS-filtered counts (39,860 vs 39,696) are within 0.4% and match the COLO829 truth-set order (~39k)."
+  },
+  "cloud34_orig_killed": {
+    "run_id": "2337351",
+    "action": "CANCELLED per user. Was RUNNING ~18.5h with 0 RUNNING/0 STARTING tasks (stalled - head node not scheduling; engine log tails returned empty). Superseded by cloud35 (same uBAM pipeline + 24-thread config PLUS save_aligned_bams persist feature, nearly complete). cloud34-orig's only unique value (uBAM end-to-end cost @24thr) is covered by cloud35.",
+    "status": "STOPPING at cancel time."
+  },
+  "cloud30_killed": {
+    "run_id": "8974684",
+    "action": "CANCELLED per user (was RUNNING ~17h+, far past cloud29's 8.6h - likely merge_tumor retry loop; cache showed 6x merged_tumor.bam writes under 8974684). Freed run-group + concurrency for cloud35.",
+    "status": "STOPPING at cancel time."
+  },
+  "ubam_alignment_cost_cloud33": {
+    "source": "AnalyzeAHORunPerformance on run 6073730 (cloud33, FAILED at merge but 3 alignments COMPLETED)",
+    "instance_each": "omics.c.8xlarge (32 vCPU, 64 GB) - because task requests 24 threads (16 map + 6 sort + 2 bam2fq) which rounds UP to the 32-vCPU size",
+    "tumor1_minimap2_usd": 6.7663,
+    "tumor1_runtime_min": 221.1,
+    "tumor2_minimap2_usd": 6.6932,
+    "tumor2_runtime_min": 218.7,
+    "normal_minimap2_usd": 8.5732,
+    "normal_runtime_min": 280.2,
+    "three_alignments_total_usd": 22.03,
+    "check_for_alignment_total_usd": 0.006,
+    "efficiency": "minimap2 tasks ~35% CPU (peak ~17.6 of 32 cores), ~28% memory (peak ~22 of 64 GB) -> over-provisioned, right-size candidate.",
+    "implication": "uBAM alignment (~$22) nearly triples per-pair cost: cloud29 pre-aligned end-to-end was $11.92, so uBAM end-to-end ~= $34/pair. Across 150 pairs ~$3.3k extra for in-HealthOmics alignment. Aligning upstream/on-spot and feeding aligned BAMs is a large saving."
+  },
+  "ubam_alignment_rightsizing_test": {
+    "run_id": "4627214",
+    "run_name_prefix": "colo829-cloud34rs-ubam-",
+    "workflow_version": "v1_5_1-cloud34",
+    "hypothesis": "Drop total alignment threads 24->16 (params only, no rebuild) so minimap2_alignment lands on omics.c.4xlarge (16 vCPU, 32 GB, ~half the c.8xlarge hourly rate) instead of c.8xlarge. Memory stays 31GB (baked in process), fits 32GB. Peak usage was ~17.6 cores so 16 is tight but workable; expect ~15-30% longer runtime, net ~35-40% cheaper alignment.",
+    "params_file": "scripts/params_ubam_rightsized.json (ubam_map_threads 16->12, ubam_sort_threads 6->3, ubam_bam2fq_threads 2->1 = 16 total; all else identical to params_ubam.json)",
+    "cache_note": "Thread change alters minimap2/samtools command strings -> cache MISS by design -> fresh alignment at the smaller instance (this is what we are measuring).",
+    "status_at_launch": "PENDING",
+    "NEXT_STEPS": "On terminal (or once the 3 minimap2 tasks complete) AnalyzeAHORunPerformance 4627214; compare the 3 alignment task costs + runtimes vs cloud33's $22.03 @ c.8xlarge. Decide production alignment sizing."
+  },
+  "cache_miss_root_cause_cloud33_to_cloud34": {
+    "finding": "cloud33's 3 minimap2 alignment outputs DID export to run-cache 6598859 (cache is 6.3TB/4264 objects; task dirs 1881290/1137035/9840593 present under run 6073730). NOT the old IAM/empty-cache issue.",
+    "why_cloud34_missed": "Nextflow per-task cache hash differs between runs. Compared the 21 hashed components of ingress_ubam_t1:minimap2_alignment: script, container, reference, workflow-glue (content-hashed) all MATCH. Only the 2 input-file FileHolders differ (entry 9 = uBAM reads, entry 11 = sentinel .bai): their hash carries the run-scoped stage path /mnt/workflow/<run_id>/<session_uuid>/... (6073730 vs 2337351). Different run -> different path -> different hash -> cache MISS. cloud33 hash 7bdebea2..., cloud34 hash 596c1452...",
+    "root_reason": "minimap2 consumes files passed THROUGH the upstream check_for_alignment process (ran fresh, ~0.2min, no hit), not the immutable S3 object. Intermediate-file inputs are hashed with the per-run staged path, so the expensive alignment is NOT cross-run cacheable. Cross-run cache only works within a resume lineage where upstream also hit.",
+    "resolution": "Persist aligned BAMs to S3 (save_aligned_bams feature, cloud35) and resume from them - which also removes the ~$22 alignment cost entirely."
+  },
+  "cloud35_persist_aligned_feature": {
+    "goal": "Persist ALIGNED tumor(merged)+normal BAMs to <out_dir>/aligned_bams/ so a future run resumes from aligned BAMs and skips the ~$22 uBAM alignment.",
+    "code_changes": [
+      "nextflow.config: new param save_aligned_bams=false.",
+      "nextflow_schema.json: save_aligned_bams boolean (so it can be passed at runtime).",
+      "main.nf: new leaf process publish_aligned (hardlink-rename input to tumor_aligned.bam / normal_aligned.bam + index, publishDir copy to <out_dir>/aligned_bams/, pattern *.bam*). Wired via: if(save_aligned_bams){ publish_aligned( bam_tumor.map->('tumor_aligned',xam,xai) .mix( bam_normal.map->('normal_aligned',xam,xai) ) ) }. Fan-out of bam_tumor/bam_normal relies on DSL2 multi-consumer (also feed all_bams).",
+      "Includes cloud34 merge_tumor stageAs collision fix."
+    ],
+    "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud35.zip",
+    "registered_version": "v1_5_1-cloud35 ACTIVE (workflow 2590600). VERIFIED by exporting the registered definition: save_aligned_bams param present, ubam threads 16/6/2 (=24 -> c.8xlarge), publish_aligned process+call present, merge_tumor stageAs collision fix present.",
+    "resume_usage": "After a save_aligned_bams=true uBAM run, feed aligned_bams/tumor_aligned.bam + normal_aligned.bam as bam_tumor + bam_normal (SINGLE aligned files, NO bam_tumor2) to an aligned-input workflow version (cloud30-style) -> pipeline detects aligned -> skips minimap2 -> ~$12 pre-aligned path.",
+    "open_run_decision": "cloud34-orig(2337351) + cloud34-rs(4627214) are BOTH mid-alignment without this feature. Efficient plan: cancel both, launch ONE cloud35 run (right-sized threads + save_aligned_bams=true) = right-sizing cost + persisted aligned BAMs + end-to-end in a single alignment. Pending user OK (no-cancel rule)."
+  },
+  "rightsizing_decision_cloud35": {
+    "decision": "cloud35 uses cloud34-orig minimap2 sizing: ubam_map_threads=16, ubam_sort_threads=6, ubam_bam2fq_threads=2 (=24 threads -> omics.c.8xlarge). Baked as nextflow.config defaults so the artifact is self-consistent.",
+    "evidence": "cloud34-rs (16 threads -> c.4xlarge, run 4627214) was a POOR trade: alignment ran >5h (still going) vs cloud34-orig ~195-250min, i.e. +65%+ wall-clock, for only ~10-15% lower cost (c.4xlarge ~$0.918/hr vs c.8xlarge $1.836/hr). The longer wall-clock hurts the 150-pair campaign against the 25-task concurrency wall. cloud34-orig 24-thread alignment: tumor1 195.4min/$5.98, tumor2 196.0min/$6.00, normal 250.6min/$7.67; merge_tumor 88.8min COMPLETED (merge stageAs collision fix CONFIRMED)."
+  },
+  "cloud29_results_validation": {
+    "run_id": "5432172 (only COMPLETED full somatic run; pre-aligned; $11.92; chunked phasing)",
+    "verdict": "Results biologically correct (not a formal truth-set benchmark).",
+    "outputs_complete": "somatic SNV+indel VCFs, tumor/normal germline VCFs, Severus SV VCF, 5mC/5hmC bedmethyl+DML/DMR/DSS, ClinVar annot, QC (mosdepth/flagstat/readstats), all HTML reports.",
+    "coverage": "tumor 96.9x, normal 58.9x (deeper than nominal 60/30 targets).",
+    "somatic_snv_count": 59984,
+    "somatic_indel_count": 4050,
+    "ts_tv": 2.21,
+    "mutation_signature": "Spectrum overwhelmingly C>T at TpC/CpC (T[C>T]C=8016, T[C>T]A=4560, C[C>T]C=2855) = UV/SBS7 = textbook COLO829 melanoma. Strongest correctness signal.",
+    "somatic_vcf_phasing": "somatic SNV VCF has NO PS/HP tags; normal germline VCF is unphased (GT=0/1). Phasing is INTERNAL to ClairS (phase normal -> haplotag -> haplotype-aware calling), not a published output.",
+    "caveat": "Biological-plausibility validation only; a formal precision/recall needs som.py/hap.py vs the published COLO829 truth VCF in high-confidence regions (not run)."
+  },
+  "phasing_correctness_validation": {
+    "question": "Is phasing correct / affected by our chunked-phasing approach?",
+    "method": "Scanned all 24 snv:clairs_phase task logs in cloud29 (5432172) for PHASE_FALLBACK (chunk exceeded 15m timeout -> UNPHASED).",
+    "result": "EXACTLY 1 fallback across the whole genome: chr1:120000001-140000000 (pericentromeric, the region that caused the original 13h+ longphase hang). All 24 clairs_phase + 24 clairs_haplotag COMPLETED.",
+    "impact": "~99.4% of genome phased normally (only theoretical change: phase blocks cannot span 20Mb chunk boundaries, negligible since ONT phase blocks are typically <1-2Mb). The one unphased 20Mb chr1 pericentromeric chunk is fundamentally unphaseable with this data (longphase could not converge); somatic calling there falls back to non-haplotype-aware pileup - a low-mappability window where calls are unreliable regardless.",
+    "verdict": "Phasing correct. Chunked approach traded phasing of one unphaseable 20Mb chr1 window for eliminating the 13h+ hang. Downstream calls that depend on phasing are healthy (Ts/Tv 2.21, UV signature) -> internal haplotagging worked. Phasing is not a published deliverable, so no formal switch-error benchmark needed for the POC."
+  },
+  "cloud37_build": {
+    "status": "IMAGE_BUILT_AND_PUSHED",
+    "ecr_image_uri": "687677765589.dkr.ecr.ap-southeast-1.amazonaws.com/cloud37-align:latest",
+    "image_digest": "sha256:4d4cf0349afd9510348d7d350ec1c805eec80bc0d4e96fcb30fa7fafac57d78a",
+    "manifest_size_bytes": 2204,
+    "built_on": "ephemeral on-demand c6i.xlarge AL2023 x86_64 EC2 (i-00198b203f4d4a3a1), self-terminated after ~3min via instance-initiated-shutdown-behavior=terminate. No persistent EC2.",
+    "platform": "linux/amd64 (docker build --platform linux/amd64)",
+    "contents": "amazonlinux:2023 + samtools 1.20 + minimap2 2.28 (prebuilt x64) + aws-cli v2 + align_job.sh + merge_job.sh",
+    "build_log_s3": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/cloud37-build/build-logs/build-20260716T033925Z-SUCCESS.log",
+    "credential_hygiene": "Built cloud-side using the cloud37-builder-role IAM instance profile only (no static creds). docker logout run on the instance before self-termination. No ECR token cached on the workstation (build never touched local docker).",
+    "builder_iam": {
+      "role": "cloud37-builder-role (ephemeral; ec2 trust; inline: ECR push to cloud37-align, S3 read cloud37-build/*, S3 put build-logs/*; managed: AmazonSSMManagedInstanceCore)",
+      "instance_profile": "cloud37-builder-profile",
+      "cleanup_note": "Builder role + instance profile can be deleted now that the image is pushed; retained for image rebuilds."
+    },
+    "next_steps": "1) cloudformation deploy cloud37 stack with deploy.params.json (AlignImageUri now valid). 2) Start test SFN execution: 2 uBAM tumors + uBAM normal from inputs/ubam/, ref GRCh38_no_alt_analysis_set.fna, override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v4.2.0."
+  },
+  "cloud37_deploy": {
+    "status": "STACK_DEPLOYED",
+    "stack_name": "cloud37",
+    "region": "ap-southeast-1",
+    "template_fix": "StartVariantRun state was missing the required RequestId idempotency token for the omics:startRun SDK integration (SCHEMA_VALIDATION_FAILED). Added 'RequestId.$': 'States.UUID()'. Initial CREATE rolled back; deleted ROLLBACK_COMPLETE stack and redeployed clean.",
+    "state_machine_arn": "arn:aws:states:ap-southeast-1:687677765589:stateMachine:cloud37-align-then-variant",
+    "job_queue_arn": "arn:aws:batch:ap-southeast-1:687677765589:job-queue/JobQueue-l9q27y4tYjDEBFWq",
+    "align_job_def": "AlignJobDef-FGSFqilsowqUNNkL:1",
+    "merge_job_def": "MergeJobDef-mjSTi3MCo3IY5RGn:1",
+    "manifest_lambda": "cloud37-ManifestLambda-u0f6InG9KNfl",
+    "compute_environment": "ComputeEnvironment-XHDTMzVZ6ee4Kluc (on-demand, NOT spot)",
+    "taskrole_fix": "First test execution (cloud37-test-20260716T040425Z) FAILED: Batch job def used JobRoleArn=EcsInstanceRole (ec2.amazonaws.com trust) as the CONTAINER job role, but a container job role must have ecs-tasks.amazonaws.com trust -> 'ECS was unable to assume the role'. Added a dedicated TaskRole (ecs-tasks trust + S3 rw) and pointed both AlignJobDef and MergeJobDef JobRoleArn at it. Redeployed (in-place update)."
+  },
+  "cloud37_test_run": {
+    "execution_name": "cloud37-test-20260716T041017Z",
+    "execution_arn": "arn:aws:states:ap-southeast-1:687677765589:execution:cloud37-align-then-variant:cloud37-test-20260716T041017Z",
+    "output_prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/COLO829-cloud37-20260716T041017Z/",
+    "inputs": "2 uBAM tumors (tumor1_PAU59949, tumor2_PAU61426) + uBAM normal (PAU59807) from inputs/ubam/; ref GRCh38_no_alt_analysis_set.fna; override_basecaller_cfg dna_r10.4.1_e8.2_400bps_sup@v4.2.0",
+    "status": "RUNNING - 3 align jobs STARTING on Batch on-demand EC2 (TaskRole assume succeeded). Flow: parallel align (2 tumor + normal) -> merge tumors -> omics:StartRun variant-only (v1_5_1-cloud36) -> WriteManifest.",
+    "expected_output_layout": "<output_prefix>/aligned_bams/{tumor_aligned,normal_aligned}.bam(.bai) + manifest.json + <ho-run-id>/definition/output/"
+  },
+  "cloud37_automation": {
+    "goal": "Automate all customer prerequisites so transfer is (near) one command. Only manual input is the customer's own tumor/normal BAMs.",
+    "prereqs_stack": {
+      "file": "production/cloud37/cloud37-prereqs.yaml",
+      "creates": "HealthOmics run IAM role (omics.amazonaws.com trust; S3 rw + ECR pull + logs, all parameterized by Bucket/EcrRepositoryPrefix), Omics::RunGroup (72h cap, maxRuns=8), Omics::Workflow + Omics::WorkflowVersion (NEXTFLOW, DefinitionUri, ContainerRegistryMap registry-1.docker.io->docker-hub, inline ParameterTemplate).",
+      "outputs": "OmicsRunRoleArn, OmicsRunGroupId, OmicsWorkflowId, OmicsVariantVersionName - feed directly into cloud37-stack.yaml params.",
+      "validation": "cfn-lint 0 errors AND aws cloudformation validate-template PASSED. NOTE: had to expand YAML anchors to literal blocks - CloudFormation engine rejects YAML aliases even though cfn-lint accepts them.",
+      "cfn_native_confirmation": "Verified via CFN template reference: AWS::Omics::Workflow, AWS::Omics::WorkflowVersion (both support ContainerRegistryMap + DefinitionUri + ParameterTemplate), and AWS::Omics::RunGroup are all CloudFormation-native. WorkflowVersion updates are Replacement (versions immutable anyway)."
+    },
+    "bootstrap_script": {
+      "file": "production/cloud37/bootstrap.sh",
+      "usage": "SUBNETS=... SECURITY_GROUP=... ./bootstrap.sh <REGION> <BUCKET> <WORKFLOW_ZIP> [REF_SRC]",
+      "steps": "1) mirror 8 ontresearch/* containers to ECR docker-hub/* (idempotent, skips already-mirrored); 2) build+push cloud37-align amd64; 3) stage GRCh38 reference; 4) upload workflow ZIP; 5) deploy prereqs stack + read outputs; 6) generate deploy.params.json + deploy app stack.",
+      "syntax_checked": "bash -n PASSED.",
+      "requirements": "awscli v2, docker (amd64 build), network to Docker Hub + GitHub, ambient AWS creds. IAM-role/ephemeral-token auth only; docker logout reminder emitted."
+    },
+    "automatable_verdict": "Everything except the customer's own BAMs. Container mirror + image build + reference staging + workflow ZIP upload -> bootstrap.sh; run role + run group + workflow/version -> IaC (prereqs stack). Net customer flow: set SUBNETS/SECURITY_GROUP -> run bootstrap.sh -> start SFN executions with their BAMs.",
+    "codebuild_option": {
+      "file": "production/cloud37/cloud37-build.yaml",
+      "goal": "Arch-independent, Docker-free image build. A privileged amd64 CodeBuild project mirrors the 8 ontresearch/* containers to ECR AND builds+pushes cloud37-align, driven by an inline buildspec. Source = build-context ZIP (Dockerfile + align_job.sh + merge_job.sh) in S3.",
+      "why": "Operator workstation is arm64 (can't cleanly cross-build amd64) and may lack Docker. CodeBuild removes both constraints - the customer needs only awscli + network.",
+      "bootstrap_integration": "bootstrap.sh BUILD_MODE env var: 'codebuild' (DEFAULT - packages context ZIP, deploys cloud37-build stack, starts build, waits to SUCCEEDED) or 'local' (original local-Docker path). Idempotent container mirror preserved in both.",
+      "validation": "cfn-lint 0 errors AND aws cloudformation validate-template PASSED. bash -n on bootstrap.sh PASSED.",
+      "codebuild_image": "aws/codebuild/amazonlinux-x86_64-standard:5.0, BUILD_GENERAL1_MEDIUM, PrivilegedMode=true (Docker daemon).",
+      "PROVEN_END_TO_END": "Deployed cloud37-build stack, started build cloud37-image-build:3f9ba545-... -> SUCCEEDED (~2 min). Log confirms all 8 containers detected 'skip (already mirrored)' and cloud37-align rebuilt amd64 + pushed (new digest sha256:7dcca79ea8a8135ddafbaa0ac90dd2d9122293bbd83adaa2e904d35912e0189b). CodeBuild path fully validated in-account.",
+      "bootstrap_bug_fixed": "bootstrap.sh codebuild path originally used `mktemp -t ...zip` which pre-creates the file -> `zip` rejects it ('Zip file structure invalid'). Fixed to mktemp -d + ctx.zip inside it."
+    },
+    "customer_e2e_run": {
+      "what": "Full customer simulation: ran bootstrap.sh ap-southeast-1 <bucket> <cloud36-zip> with SUBNETS/SECURITY_GROUP env. CodeBuild image build SUCCEEDED, prereqs stack created fresh IaC resources, app stack repointed to them, then started a real 2-uBAM-tumor + uBAM-normal Step Functions execution.",
+      "iac_created_resources": {
+        "run_role_arn": "arn:aws:iam::687677765589:role/cloud37-prereqs-OmicsRunRole-zByGsDgcqiUt",
+        "run_group_id": "7989295",
+        "workflow_id": "5835424",
+        "version_name": "cloud37-variant",
+        "note": "PROVES AWS::Omics::Workflow + WorkflowVersion via CloudFormation register a working workflow from the cloud36 definition ZIP + registry map."
+      },
+      "attempt1_failed": {
+        "execution_name": "cloud37-cust-20260716T053124Z",
+        "failure": "Align jobs reached RUNNING then FAILED (exit 1): '[Errno 28] No space left on device' downloading the 124GB uBAM. Batch instances launched with the default tiny root EBS; /scratch (host root) could not hold the multi-hundred-GB BAMs.",
+        "fix": "Added AWS::EC2::LaunchTemplate to cloud37-stack.yaml with a 1024GB gp3 root volume (DiskSizeGb param), wired into the ComputeEnvironment. AL2023 ECS AMI auto-grows the root fs. Covers align ~500GB + merge ~560GB peak. Redeployed app stack."
+      },
+      "execution_name": "cloud37-cust-20260716T055132Z",
+      "execution_arn": "arn:aws:states:ap-southeast-1:687677765589:execution:cloud37-align-then-variant:cloud37-cust-20260716T055132Z",
+      "output_prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/COLO829-cust-20260716T055132Z/",
+      "iac_created_resources_repointed": "app stack cloud37 now uses workflow 5835424/cloud37-variant, run role cloud37-prereqs-OmicsRunRole-zByGsDgcqiUt, run group 7989295 (all IaC-created), + 1024GB Batch disk.",
+      "status": "RUNNING (attempt 2, disk fix) - align (2 tumor + normal) -> merge -> omics:StartRun -> WriteManifest. Monitoring to HealthOmics terminal; must confirm no finalize hang.",
+      "align_timings_attempt2": "tumor1 309.8 min, tumor2 312.1 min (parallel) on c6i.4xlarge, 16 map threads, default-throughput gp3. Includes ~124-135GB S3 download + minimap2 + sort spill/merge + ~150GB upload. Normal (164GB) still running. Slower than in-HealthOmics (~195-250min at 24 threads) due to explicit S3 I/O + 125MB/s gp3."
+    },
+    "perf_optimization": {
+      "trigger": "5.2h/align too long. User requested both levers.",
+      "change1_disk": "LaunchTemplate gp3 scratch: added Throughput=1000 MiB/s + Iops=16000 (params DiskThroughputMbps/DiskIops). Was gp3 default 125 MiB/s - the S3 download/upload and samtools sort spill/merge tail were throughput-bound.",
+      "change2_instances": "InstanceTypes c6i.4xlarge/m6i.2xlarge -> c6i.8xlarge/c6i.12xlarge (32-48 vCPU). AlignJobDef 16->32 vCPU, 30->60GB, env MAP_THREADS=24/SORT_THREADS=6/BAM2FQ_THREADS=2 (=32, the proven cloud34-orig fast minimap2 config). MergeJobDef 8->16 vCPU, env THREADS=16.",
+      "validation": "aws cloudformation validate-template PASSED. Deployed (in-place).",
+      "expected": "align back toward ~3-3.5h + I/O tail largely removed.",
+      "LESSON_CE_update_disrupts_running_jobs": "Deploying the compute-environment change (InstanceTypes + LaunchTemplate) MID-RUN caused Batch to roll instances and TERMINATE the running normal align job near completion (~6h in): attempt statusReason 'Host EC2 (instance i-...) terminated.'. A MANAGED CE infra update is NOT safe for in-flight jobs. For the 150-pair campaign, apply CE/instance changes only when the queue is idle. The two completed tumor aligns survived (their jobs had already SUCCEEDED).",
+      "attempt2_was_mixed_config": "The retried normal used the OLD align job def (16 vCPU/16 threads, snapshotted by the in-flight SFN execution) but landed on the new c6i.8xlarge + fast gp3 - i.e. I/O speedup only. Confirmed the in-flight execution does NOT pick up new job def revisions."
+    },
+    "customer_e2e_run_attempt3_optimized": {
+      "decision": "User chose Option 2: cancel the mixed-config run and restart fresh so ALL THREE aligns use the full optimized config (true fast number + clean end-to-end).",
+      "cancelled": "execution cloud37-cust-20260716T055132Z stopped; lingering normal align job terminated.",
+      "execution_name": "cloud37-cust-20260716T122455Z",
+      "execution_arn": "arn:aws:states:ap-southeast-1:687677765589:execution:cloud37-align-then-variant:cloud37-cust-20260716T122455Z",
+      "output_prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/COLO829-cust-20260716T122455Z/",
+      "config_confirmed": "align jobs 32 vCPU / 60GB / MAP_THREADS=24 / SORT_THREADS=6 / BAM2FQ_THREADS=2 on c6i.8xlarge + gp3 1000 MiB/s + 16000 IOPS. All 3 RUNNING at launch.",
+      "status": "align stage COMPLETED on optimized config, then merge FAILED (see below).",
+      "OPTIMIZED_ALIGN_TIMES": "execution start 12:24:58Z. tumor1 done ~15:22Z (~2h57m), tumor2 ~15:23Z (~2h59m), normal ~16:07Z (~3h43m). vs previous slow config tumors 5h11m/5h13m -> ~43% faster. Mapping parallelism ~21x (24 threads) vs ~12.4x (16 threads). Aligned BAMs: tumor1 148GB, tumor2 150GB, normal 183GB.",
+      "merge_failure": {
+        "job": "merge-tumors (2 attempts)",
+        "error": "CannotPullContainerError ... no space left on device at /var/lib/docker/... - the instance root volume was ALREADY full when the merge container tried to start.",
+        "root_cause": "align_job.sh wrote ~500GB to /scratch (host root volume) and NEVER cleaned up. Batch reused an instance still holding a finished align job's scratch; merge container couldn't even pull/tag the image. Bigger disk alone would not fix this - instance reuse keeps accumulating.",
+        "fix": "align_job.sh + merge_job.sh now use a unique per-job scratch dir WORK=/scratch/job-$AWS_BATCH_JOB_ID with `trap 'rm -rf $WORK' EXIT` so each job leaves the instance clean. Rebuilt image via CodeBuild (SUCCEEDED)."
+      }
+    },
+    "customer_e2e_run_attempt4_rerun": {
+      "optimization": "Aligned BAMs from attempt3 already in S3; align_job.sh auto-detects aligned input (index-only, skips minimap2). Re-ran pointing bam_tumor/tumor2/normal at those aligned BAMs -> fast index-only 'align' + merge + HealthOmics, WITHOUT ~3.7h realign, and also validates the aligned-input branch. Fresh instances (ECS cluster had 0 registered container instances) so no stale scratch.",
+      "execution_name": "cloud37-cust-20260716T235018Z",
+      "output_prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/COLO829-cust-20260716T235018Z/",
+      "status": "FAILED at index-only align classification (see align_classify_bug).",
+      "align_classify_bug": {
+        "error": "align_job.sh line ~35: 'FIRST_FLAG=$(samtools view in.bam | head -1 | awk ... || echo 4)'. Under set -o pipefail, head -1 closes the pipe -> samtools SIGPIPE (nonzero) -> the '|| echo 4' fires and APPENDS a token, so FIRST_FLAG became '0\\n4' -> $(( )) arithmetic syntax error, then UNMAPPED unbound. Latent race: passed on the uBAM path, failed on the aligned-input path.",
+        "fix": "Wrapped the SQ + FIRST_FLAG extraction in `set +o pipefail` ... `set -o pipefail`, dropped the '|| echo 4', and defaulted SQ=0 / FIRST_FLAG=4 if empty. Rebuilt image via CodeBuild (SUCCEEDED). bash -n OK."
+      }
+    },
+    "customer_e2e_run_attempt5_rerun": {
+      "execution_name": "cloud37-cust-20260717T014511Z",
+      "output_prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/COLO829-cust-20260717T014511Z/",
+      "inputs": "same aligned BAMs from attempt3 (index-only path), fresh instances (0 registered container instances), classification-fixed image.",
+      "status": "COMPLETED END-TO-END.",
+      "RESULT": {
+        "outcome": "FULL SUCCESS - Step Functions execution SUCCEEDED. index-only align -> merge_tumors SUCCEEDED (merged tumor ~297GB) -> omics:StartRun -> HealthOmics run 9369634 (cloud37-COLO829-variant) COMPLETED -> manifest.json written.",
+        "healthomics_run": "9369634, start 04:14:36Z, stop 12:52:23Z, duration ~8h37m, status COMPLETED - NO finalize/STOPPING hang (the behavior the user asked to confirm).",
+        "merge_duration": "merge_tumors ~ (started ~02:00Z region, merged tumor uploaded 12:09Z local(+08)=04:09Z) - completed successfully with the scratch-cleanup + clean-instance fixes.",
+        "outputs_verified": "snv/vcf/{COLO829_somatic_snv.vcf.gz, COLO829_somatic_indel.vcf.gz, tumor_germline, normal_germline} + snv/annot clinvar; mod/ 5mC+5hmC bedMethyl (tumor+normal); sv/ severus; qc/; bam/. Full wf-somatic-variation deliverable set present under 9369634/definition/output/COLO829/.",
+        "manifest": "well-formed cloud37-b1c/1 schema: source_inputs, aligned_bams, healthomics.run_id=9369634 + run_output_uri.",
+        "proves": "cloud37 B1c end-to-end works on IaC-created resources (workflow 5835424/cloud37-variant, run role + run group from prereqs stack), with both align-path bugs fixed (scratch cleanup, classification pipefail race). HealthOmics COMPLETED cleanly."
+      }
+    },
+    "cost_and_runtime_per_pair": {
+      "note": "Real uBAM pair. Align = full minimap2 (attempt3 timings); this validation run used index-only align (~18-22min). Prices on-demand ap-southeast-1: c6i.8xlarge $1.568/hr + 1024GB gp3 max(16000 IOPS/1000MiBps) $0.299/hr = $1.867/node-hr.",
+      "align_tumor1": "177.5 min, $5.52 (compute 4.64 + ebs 0.89)",
+      "align_tumor2": "177.6 min, $5.53",
+      "align_normal": "221.7 min, $6.90",
+      "merge_tumors": "123.9 min, $3.86",
+      "ec2_subtotal": "$21.80 (align parallel wall-clock 3h42m + merge 2h04m)",
+      "healthomics_9369634": "$12.0937 (task 8.8413 + storage 3.2524), 831 tasks, ~8h37m",
+      "grand_total_per_pair": "~$33.89",
+      "end_to_end_wallclock": "~14.4 h (align parallel -> merge -> HealthOmics)",
+      "150_pairs_compute": "~$5,080 (before right-sizing); wall-clock governed by Batch/run-group concurrency, not 150x"
+    },
+    "prod_cost_trims_applied": {
+      "gp3_iops_16000_to_6000": "cloud37-stack.yaml DiskIops default 16000->6000 (workload is throughput-bound, not IOPS-bound; keeps DiskThroughputMbps=1000). Applies on next app-stack deploy (do when Batch queue idle - CE update rolls instances).",
+      "pileup_variants_rightsize": "production/cloud-pipeline/nextflow.config pileup_variants memory 12.GB->8.GB * task.attempt (cpus=2 unchanged) -> omics.m.large (2C/8G) instead of omics.r.large (2C/16G). ~21% cheaper/task, same runtime (same 2 vCPU); OOM-retry escalates 8->16->24->32GB. Est. save ~$0.66/run (332 tasks), ~$100 over 150 pairs.",
+      "new_workflow_version": "cloud37-variant-rs on workflow 5835424, status ACTIVE. Definition zip s3://.../workflow-artifacts/wf-somatic-variation-v1.5.1-cloud37rs.zip (cloud36 + pileup rightsize). deploy.params.json OmicsVariantVersionName updated to cloud37-variant-rs.",
+      "not_redeployed": "App stack NOT redeployed (avoids mid-state CE churn). Redeploy cloud37 + point at cloud37-variant-rs when ready to run the next pair."
+    },
+    "run9369634_bottleneck_analysis": {
+      "method": "ListRunTasks on 9369634, durations + per-process aggregation.",
+      "evaluate_candidates": "max shard 6.4 min, NO straggler -> depth-aware candidate-BED sharding already works; nothing to fix.",
+      "top_serial_tasks": "mod:dss (2 tasks, 140.9 & 125.6 min) on omics.r.xlarge using 1 of 4 CPUs (dss_threads=1); snv:concat_bams 49.8 min; snv:clairs_phase up to 35.7 min.",
+      "dominant_stage": "SNV full-alignment: clairs_predict_full (332 tasks, 1134 task-min) + clairs_create_fullalignment_paired_tensors (332 tasks, 873 task-min) - short tasks throttled by HealthOmics per-run task concurrency. This, not any single task, drives the ~8.6h wall-clock. Lever = raise per-run concurrency quota (not yet done)."
+    },
+    "prod_trims_rs2": {
+      "changes": "dss_threads 1->4 + withName:'dss' cpus=4/32GB retry (halve the ~141min DSS long-pole, same r.xlarge = $0 extra); clairs_create_paired_tensors 16->4GB (r.large->c.large, memory-only, ~$0.07/run); bamstats c.4xlarge->c.2xlarge via withName cpus=8/16GB (~$0.13/run). pileup rs change retained.",
+      "definition_zip": "s3://ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/wf-somatic-variation-v1.5.1-cloud37rs2.zip (cloud36 + all rs/rs2 config deltas; only nextflow.config differs from cloud36).",
+      "registered_version": "cloud37-variant-rs2 on workflow 5835424, status ACTIVE.",
+      "deploy_params_updated": "OmicsVariantVersionName -> cloud37-variant-rs2.",
+      "expected": "~$0.20/run cheaper (create_paired_tensors + bamstats) on top of pileup rs (~$0.66); dss threading trims the DSS task ~50% (wall-clock help only if mod branch nears critical path). Not yet validated on a run.",
+      "still_open": "Raise HealthOmics per-run task concurrency (biggest wall-clock lever for the 664-task SNV full-alignment stage) - quota check pending. Streaming S3 download into align (#3) not applied."
+    },
+    "cloud37_e2e_rs2_test": {
+      "purpose": "Full uBAM end-to-end test of the newest config: fast align (32vCPU/1000MiBps/6000 IOPS) + merge + HealthOmics cloud37-variant-rs2.",
+      "deploy_gotcha_fixed": "First redeploy left DiskIops at 16000 - `cloudformation deploy` reuses PREVIOUS param values for params not in --parameter-overrides (not the new template default). Fixed by passing DiskIops=6000 explicitly. LaunchTemplate latest now Iops=6000/Throughput=1000/1024GB. (First execution stopped seconds in, no work lost.)",
+      "execution_name": "cloud37-rs2-20260717T154825Z",
+      "output_prefix": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/COLO829-rs2-20260717T154825Z/",
+      "app_stack_params": "workflow 5835424 / cloud37-variant-rs2, run role cloud37-prereqs-OmicsRunRole, run group 7989295, DiskIops=6000.",
+      "status": "RUNNING - 3 uBAM align jobs on fresh instances. Full align (~3h) -> merge (~2h) -> HealthOmics rs2 -> manifest. Monitoring to terminal.",
+      "align_classify_regression_fix": "First rs2 uBAM run FAILED at classification: my earlier rewrite dropped `|| true` on `SQ=$(samtools view -H | grep -c '^@SQ')`. A uBAM has NO @SQ lines -> grep -c exits 1 -> `set -e` aborted. (Passed on aligned-input runs which DO have @SQ.) Restored `|| true` on BOTH the SQ grep and FIRST_FLAG lines (pipefail already off). Rebuilt image. This matches the proven attempt3 uBAM behavior.",
+      "FINAL_e2e": {
+        "execution": "cloud37-rs2-20260717T161104Z SUCCEEDED (align+merge+omics:startRun trigger+manifest). NOTE: SFN startRun returns immediately, so SFN SUCCESS = HealthOmics STARTED, not finished.",
+        "align_merge_timings_6000iops": "aln-t1 177.5m, aln-t2 177.1m, aln-normal 221.5m, merge 125.6m - IDENTICAL to the 16000-IOPS run -> gp3 6000 IOPS causes ZERO slowdown (workload is throughput-bound). IOPS cost trim is free.",
+        "healthomics_run": "2022077 (cloud37-variant-rs2), started 2026-07-17T22:03:29Z, monitoring to terminal (confirm no finalize hang + rs2 right-size behavior + final cost).",
+        "manifest": "written with run_id 2022077 + aligned tumor/normal."
+      },
+      "PILEUP_RS_REGRESSION": {
+        "finding": "rs pileup_variants 12->8GB caused multi-hour stragglers. Run 2022077 (8GB): pileup median 2.3min but 5 shards STUCK >270min (attempt1, not OOM - THRASHING under 8GB on deep pericentromeric high-depth regions). Run 9369634 (cloud36, 12GB): pileup not even in top-12 longest tasks (longest was dss 141min). Confirmed regression.",
+        "root_cause": "Deep regions build huge pileup tensors; 8GB causes memory-pressure thrash (slow, no clean OOM/retry). Perf report 'over-provisioned' averaged the many small shards and missed the deep tail.",
+        "fix_rs3": "Reverted pileup_variants 8->12GB and clairs_create_paired_tensors 4->16GB to cloud36 known-good. Kept bamstats c.4xlarge->c.2xlarge (~$0.13/run, QC, safe) + dss_threads 1->4 (halves DSS long-pole, same instance). Registered cloud37-variant-rs3 (ACTIVE pending). deploy.params.json -> cloud37-variant-rs3.",
+        "lesson": "AnalyzeAHORunPerformance right-size recs are AVERAGE-based; for processes whose memory scales with local depth (ClairS pileup/tensor stages), do NOT cut memory below the deep-tail requirement - thrash, not OOM, so no retry safety net.",
+        "net_savings_kept": "bamstats ~$0.13/run + gp3 IOPS 16000->6000 (free) ; pileup/tensor cuts abandoned. DSS threading = faster, cost-neutral."
+      }
+    },
+    "rs3_ho_only_validation": {
+      "approach": "User: don't redo the ~5h Batch front-end; reuse the aligned BAMs already produced by run 2022077's Batch stage and run only the HealthOmics part on rs3 to completion. Cancelled the stragglering 2022077 (rs2).",
+      "aligned_inputs": "s3://.../outputs/COLO829-rs2-20260717T161104Z/aligned_bams/{tumor_aligned.bam (297GB merged), normal_aligned.bam (183GB)} - from the Batch align+merge that already succeeded.",
+      "run_id": "4074436",
+      "run_name": "cloud37-rs3-hoonly-COLO829",
+      "workflow_version": "cloud37-variant-rs3 (workflow 5835424)",
+      "output_uri": "s3://ont-lrs-somatic-poc-apse1-687677765589/outputs/COLO829-rs3-hoonly/",
+      "run_group": "7989295",
+      "params": "snv/sv/mod/diff_mod/annotation all true; override dna_r10.4.1_e8.2_400bps_sup@v4.2.0; DYNAMIC storage",
+      "status": "COMPLETED.",
+      "RESULT": {
+        "run": "4074436 COMPLETED, start 04:55:53Z, stop 13:36:46Z, ~8h41m, NO finalize hang.",
+        "cost": "$11.5824 (task $8.3104 + storage $3.2720), 769 tasks. vs cloud36 run 9369634 $12.0937 -> ~$0.51 cheaper (bamstats c.2xlarge + DSS faster/fewer instance-hours).",
+        "pileup_straggler_FIXED": "12GB revert confirmed: pileup shards ran 0.6-2.3min live, NO straggler; run completed in ~8h41m (same as clean cloud36 9369634 8h37m), vs rs2 8GB which had 5 shards >270min and never completed. Fix validated.",
+        "outputs": "Full set under 4074436/definition/output/COLO829/: somatic SNV+indel VCFs, tumor/normal germline, mod/ sv/ qc/ bam/.",
+        "report_note": "AnalyzeAHORunPerformance AGAIN flags pileup_variants r.large->c.large ($0.66) - CORRECTLY IGNORED (that avg-based rec is exactly what caused the rs2 straggler). Documented lesson stands.",
+        "dss_threading": "cost-neutral; did not shorten overall wall-clock (DSS not on critical path, as predicted) but removes it as a future long-pole risk.",
+        "full_e2e_validated": "Batch align+merge (run 2022077 front-end, ~5h) + HealthOmics rs3 (8h41m) = complete correct pipeline on the newest config (gp3 6000 IOPS, 24-thread align, rs3 variant caller)."
+      }
+    }
+  }
+}

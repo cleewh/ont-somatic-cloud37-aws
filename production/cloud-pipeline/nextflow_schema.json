@@ -1,0 +1,678 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://raw.githubusercontent.com/epi2me-labs/wf-somatic-variation/master/nextflow_schema.json",
+    "title": "epi2me-labs/wf-somatic-variation",
+    "workflow_title": "Somatic Variation",
+    "description": "Human (somatic) SNV, SV, and modified base calling.",
+    "demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo.tar.gz",
+    "aws_demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-somatic-variation/wf-somatic-variation-demo/aws.nextflow.config",
+    "url": "https://github.com/epi2me-labs/wf-somatic-variation",
+    "type": "object",
+    "definitions": {
+        "workflow": {
+            "title": "Workflow Options",
+            "type": "object",
+            "fa_icon": "fas fa-arrow-right",
+            "description": "Select which sub-workflows of wf-human-variation you wish to run. Parameters for each sub-workflow can be changed using the sections below.",
+            "properties": {
+                "snv": {
+                    "title": "SNV: Short variants",
+                    "type": "boolean",
+                    "description": "Call for somatic small variants.",
+                    "help_text": "If this option is selected, small variant calling will be carried out using ClairS.",
+                    "default": false
+                },
+                "sv": {
+                    "title": "SV: Structural variants",
+                    "type": "boolean",
+                    "description": "Call for somatic structural variants.",
+                    "help_text": "If this option is selected, the workflow will call somatic structural variants using severus.",
+                    "default": false
+                },
+                "mod": {
+                    "title": "MOD: Differential modifications",
+                    "type": "boolean",
+                    "description": "Enable output of differentially modified sites and differentially modified regions [requires input BAMs with ML and MM tags].",
+                    "help_text": "If this option is selected, modified bases will be aggregated with modkit and differential modifications will be computed with DSS.",
+                    "default": false
+                }
+            },
+            "anyOf": [
+                {
+                    "required": [
+                        "sv"
+                    ]
+                },
+                {
+                    "required": [
+                        "snv"
+                    ]
+                },
+                {
+                    "required": [
+                        "mod"
+                    ]
+                }
+            ]
+        },
+        "input": {
+            "title": "Main options",
+            "type": "object",
+            "fa_icon": "fas fa-arrow-right",
+            "description": "Primary options for the data analysis.",
+            "properties": {
+                "sample_name": {
+                    "title": "Sample name",
+                    "type": "string",
+                    "default": "SAMPLE",
+                    "description": "Sample name to be displayed in workflow outputs.",
+                    "help_text": "The sample name will be used from the workflow to correctly name output files."
+                },
+                "bam_normal": {
+                    "title": "Normal BAM",
+                    "type": "string",
+                    "format": "path",
+                    "description": "BAM or unaligned BAM (uBAM) files for the normal sample to use in the analysis.",
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample_name`."
+                },
+                "bam_tumor": {
+                    "title": "Tumor BAM",
+                    "type": "string",
+                    "format": "path",
+                    "description": "BAM or unaligned BAM (uBAM) files for the tumor sample to use in the analysis.",
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample_name`."
+                },
+                "bam_tumor2": {
+                    "title": "Tumor BAM",
+                    "type": "string",
+                    "format": "path",
+                    "description": "Optional second tumor BAM (cloud/HealthOmics). When set, it is merged with bam_tumor into a single BAM before analysis.",
+                    "help_text": "This accepts one of two cases: (i) the path to a single BAM file; (ii) the path to a top-level directory containing BAM files. A sample name can be supplied with `--sample_name`."
+                },
+                "save_merged_tumor": {
+                    "title": "Save merged tumor BAM",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Persist the in-pipeline merged tumor BAM to the output bucket (cloud/HealthOmics). Default false discards it after the run.",
+                    "help_text": "Only relevant when bam_tumor2 is set. When true, the merged tumor BAM and index are published to <out_dir>/<sample>/merged_tumor/ for reuse (adds a ~290GB copy and storage cost)."
+                },
+                "save_aligned_bams": {
+                    "title": "Save aligned tumor + normal BAMs",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Persist the ALIGNED tumor and normal BAMs (after minimap2/merge) to <out_dir>/aligned_bams/ so a future run can skip uBAM alignment and resume from the aligned BAMs.",
+                    "help_text": "When true, publishes tumor_aligned.bam(.bai) and normal_aligned.bam(.bai). Use these as bam_tumor/bam_normal (single aligned files, no bam_tumor2) on a resume run to bypass the ~$22 uBAM alignment step."
+                },
+                "ref": {
+                    "title": "Reference genome file",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to a reference FASTA file.",
+                    "help_text": "Reference against which to compare reads for variant calling."
+                },
+                "bed": {
+                    "title": "Target region BED file",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "An optional BED file enumerating regions to process for variant calling.",
+                    "help_text": ""
+                },
+                "tr_bed": {
+                    "title": "Tandem repeat BED file",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "An optional BED file enumerating simple repeat regions.",
+                    "help_text": "This parameter provides a BED file specifying the location of the simple repetitive elements in the genome of choice. This file should be a standard BED file, as described in the [UCSC specification](https://genome.ucsc.edu/FAQ/FAQformat.html#format1)."
+                },
+                "pon_file": {
+                    "title": "Panel of Normals file",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "An optional Panel of Normals file enumerating normal expected structural variants.",
+                    "help_text": "This parameter provides a TSV file specifying the location of expected structural variations in the genome of choice. [Severus](https://github.com/KolmogorovLab/Severus/blob/main/scripts/pon_from_vcf.py) includes a script to generate these from a VCF file. A default is used for HG38, generated from the 1000 genomes project."
+                },
+                "out_dir": {
+                    "title": "Output directory",
+                    "type": "string",
+                    "default": "output",
+                    "format": "directory-path",
+                    "description": "Directory for output of all workflow results."
+                },
+                "annotation": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Perform SnpEff annotation.",
+                    "help_text": "If this option is deselected, VCFs will not be annotated with [SnpEff](https://pcingola.github.io/SnpEff/)."
+                },
+                "include_all_ctgs": {
+                    "title": "Include all contigs",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Call for variants on all sequences in the reference, otherwise small variants will only be called on chr{1..22,X,Y,MT}.",
+                    "help_text": "Enabling this option will call for variants on all contigs of the input reference sequence. Typically this option is not required as standard human reference sequences contain decoy and unplaced contigs that are usually omitted for the purpose of variant calling. This option might be useful for non-standard reference sequence databases."
+                },
+                "igv": {
+                    "title": "Show in IGV",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Visualize outputs in the EPI2ME IGV visualizer.",
+                    "help_text": "Enabling this option will visualize the output VCF files in the EPI2ME desktop app IGV visualizer."
+                }
+            },
+            "required": [
+                "ref",
+                "bam_tumor"
+            ]
+        },
+        "qc_options": {
+            "title": "Quality Control Options",
+            "type": "object",
+            "fa_icon": "fas fa-vials",
+            "description": "Parameters that relate to the quality control of the reads.",
+            "properties": {
+                "depth_intervals": {
+                    "title": "Depth intervals",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Output a bedGraph file with entries for each genomic interval featuring homogeneous depth.",
+                    "help_text": "The output [bedGraph](https://genome.ucsc.edu/goldenPath/help/bedgraph.html) file will have an entry for each genomic interval in which all positions have the same alignment depth. By default this workflow outputs summary depth information from your aligned reads. Per-base depth outputs are slower to generate but may be required for some downstream applications."
+                },
+                "depth_window_size": {
+                    "type": "number",
+                    "default": 50000,
+                    "hidden": true,
+                    "description": "Coverage window size in bp.",
+                    "help_text": "This options specify the window size to use when computing the coverage along the genome."
+                },
+                "tumor_min_coverage": {
+                    "title": "Tumor minimum coverage",
+                    "type": "number",
+                    "default": 20,
+                    "hidden": false,
+                    "description": "Minimum read coverage for the tumor sample required to run analysis.",
+                    "help_text": "A tumor BAM below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
+                },
+                "normal_min_coverage": {
+                    "title": "Normal minimum coverage",
+                    "type": "number",
+                    "default": 20,
+                    "hidden": false,
+                    "description": "Minimum read coverage for the normal sample required to run analysis.",
+                    "help_text": "A normal BAM below this coverage value will fail the coverage threshold, and will not be processed in downstream analyses."
+                }
+            }
+        },
+        "snv_options": {
+            "title": "Small variant calling options",
+            "type": "object",
+            "description": "Options specific to the small variant calling subworkflow.",
+            "properties": {
+                "ctg_name": {
+                    "type": "string",
+                    "default": "EMPTY",
+                    "description": "The name of the sequence to be processed.",
+                    "hidden": true
+                },
+                "hybrid_mode_vcf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Enable hybrid calling mode that combines the *de novo* calling results and genotyping results at the positions in the VCF file given."
+                },
+                "genotyping_mode_vcf": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "VCF file input containing candidate sites to be genotyped. Variants will only be called at the sites in the VCF file if provided."
+                },
+                "normal_vcf": {
+                    "title": "Pre-computed normal VCF",
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "VCF file input containing normal sites for the given sample.",
+                    "help_text": "Pointing to a pre-computed normal VCF file will prevent the workflow from calling the germline sites for the normal sample, reducing processing time."
+                },
+                "skip_haplotype_filter": {
+                    "title": "Skip haplotype filtering",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip haplotype filtering of variants.",
+                    "help_text": "Setting this will skip haplotype filtering of variants."
+                },
+                "fast_mode": {
+                    "title": "Fast mode",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Fast germline variants calling in Clair3 (does not emit germline calls).",
+                    "help_text": "Setting this will speed up the germline calling from Clair3 by relaxing the variant calling parameters; this matches ClairS default behaviour, and therefore will not emit germline VCFs."
+                },
+                "snv_min_af": {
+                    "type": "number",
+                    "default": 0.05,
+                    "description": "Minimum SNP AF required for a candidate variant.",
+                    "hidden": true
+                },
+                "min_contig_size": {
+                    "type": "number",
+                    "default": 0.0,
+                    "description": "Contigs with contig size < min_contig_size are filtered.",
+                    "hidden": true
+                },
+                "min_qual": {
+                    "type": "number",
+                    "default": 8.0,
+                    "description": "Variants with QUAL < min_qual are soft filtered.",
+                    "hidden": true
+                },
+                "min_cov": {
+                    "type": "number",
+                    "default": 4.0,
+                    "description": "Minimum coverage required to call somatic variants.",
+                    "hidden": true
+                },
+                "min_bq": {
+                    "type": "number",
+                    "description": "Minimum base quality for candidate somatic variants calling.",
+                    "hidden": true
+                },
+                "indel_min_af": {
+                    "type": "number",
+                    "default": 0.05,
+                    "description": "Minimum somatic indel allelic frequency (if the model is r9, this will be automatically set to 1.00).",
+                    "hidden": true
+                },
+                "clair3_min_mq": {
+                    "type": "number",
+                    "default": 5.0,
+                    "description": "Minimum map quality to call germline variants.",
+                    "hidden": true
+                },
+                "clair3_ref_pct_full": {
+                    "type": "number",
+                    "default": 0.1,
+                    "description": "Expected percentage of low quality 0/0 variants called in the pileup mode for full-alignment mode calling.",
+                    "hidden": true
+                },
+                "clair3_var_pct_full": {
+                    "type": "number",
+                    "default": 0.7,
+                    "description": "Expected percentage of low quality 0/1 and 1/1 variants called in the pileup mode for full-alignment mode calling.",
+                    "hidden": true
+                },
+                "clair3_base_err": {
+                    "type": "number",
+                    "default": 0.001,
+                    "hidden": true,
+                    "description": "Estimated base error rate when enabling GVCF option (experimental).",
+                    "help_text": "Relevant only if running Clair3 in GVCF mode."
+                },
+                "clair3_gq_bin_size": {
+                    "type": "number",
+                    "default": 5,
+                    "hidden": true,
+                    "description": "Default gq bin size for merge non-variant block when enabling GVCF option (experimental).",
+                    "help_text": "Relevant only if running Clair3 in GVCF mode."
+                },
+                "germline": {
+                    "type": "boolean",
+                    "title": "Call germline sites",
+                    "default": true,
+                    "description": "The workflow will perform germline calling and tumor phasing as default; set to false to disable this (greatly speeds up execution)."
+                },
+                "phase_normal": {
+                    "title": "Phase normal sample",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Phase and tag the normal, in addition to the tumor dataset."
+                },
+                "clair3_phase_vcf": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Enable to output phasing information in the output VCF.",
+                    "help_text": "By default the final VCF output by the workflow is not phased, although some intermediates are approximately phased."
+                },
+                "print_germline_calls": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Save germline calls in the VCF file."
+                },
+                "print_ref_calls": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Save the homozygote reference calls in the VCF file."
+                },
+                "use_longphase_intermediate": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Use longphase in intermediate phasing steps."
+                },
+                "use_longphase": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Use longphase in phasing steps."
+                },
+                "use_longphase_haplotag": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Use longphase in haplotagging step."
+                },
+                "use_normal_hets_for_phasing": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Use normal heterozygote sites for variant phasing",
+                    "help_text": "As of version 0.2.0, ClairS uses the normal sites to perform the variant phasing"
+                },
+                "use_tumor_hets_for_phasing": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Use normal heterozygote sites for variant phasing",
+                    "help_text": "As of version 0.2.0, ClairS uses the normal sites to perform the variant phasing; to revert to use the tumor sites, set this variable to true"
+                },
+                "use_het_indels_for_phasing": {
+                    "type": "boolean",
+                    "default": true,
+                    "hidden": true,
+                    "description": "Use heterozygote indels sites for variant phasing",
+                    "help_text": "As of version 0.2.0, ClairS uses the heterozygot indels sites to perform the variant phasing as default; to disable this behaviour, set this variable to false"
+                },
+                "liquid_tumor": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "The sample is a liquid tumor",
+                    "help_text": "Setting this to true will have ClairS to use specific presets and model (where available) for liquid tumors, increasing accuracy."
+                },
+                "clairs_debug": {
+                    "type": "boolean",
+                    "hidden": true,
+                    "default": false,
+                    "description": "Run ClairS in debug mode."
+                },
+                "clairs_to_min_bq": {
+                    "type": "number",
+                    "default": 20.0,
+                    "description": "Minimum base quality for ClairS-TO candidate selection.",
+                    "hidden": true
+                },
+                "clairs_to_qual": {
+                    "type": "integer",
+                    "hidden": true,
+                    "default": 12,
+                    "description": "Minimum quality for intermediate steps in ClairS-TO."
+                },
+                "qual_cutoff_phaseable_region": {
+                    "type": "integer",
+                    "hidden": true,
+                    "default": 14,
+                    "description": "Quality cut-off for phaseable regions in intermediate steps of ClairS-TO."
+                },
+                "qual_cutoff_unphaseable_region": {
+                    "type": "integer",
+                    "hidden": true,
+                    "default": 20,
+                    "description": "Quality cut-off for unphaseable regions in intermediate steps of ClairS-TO."
+                },
+                "vcf_fn": {
+                    "type": "string",
+                    "default": "EMPTY",
+                    "description": "Candidate sites VCF file input, variants will only be called at the sites in the VCF file if provided.",
+                    "hidden": true
+                }
+            }
+        },
+        "sv_calling": {
+            "title": "Somatic structural variant calling options",
+            "type": "object",
+            "fa_icon": "fas fa-arrow-left",
+            "description": "Parameters for tweaking the run of the SV module.",
+            "properties": {
+                "min_sv_length": {
+                    "title": "Minimum SV size",
+                    "type": "integer",
+                    "default": 50,
+                    "description": "Minimum SV size to call.",
+                    "help_text": "Provide the minimum size of the structural variants to call with severus."
+                },
+                "min_support": {
+                    "title": "Minimum read support",
+                    "type": "integer",
+                    "default": 3,
+                    "minimum": 0,
+                    "hidden": true,
+                    "description": "Call a site if there are at least this many reads supporting the SV.",
+                    "help_text": "If a site has more at least this many reads supporting the variant, the site is called by `Severus`."
+                },
+                "vaf_threshold": {
+                    "title": "Variant allele frequency threshold",
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "hidden": true,
+                    "description": "Somatic SVs with a variant allele frequency (VAF) below this value are filtered out.",
+                    "help_text": "If a site has a VAF below this value, then `Severus` will not report it in the output VCF."
+                },
+                "severus_args": {
+                    "title": "Severus additional arguments",
+                    "type": "string",
+                    "description": "The additional options for `Severus`.",
+                    "hidden": true,
+                    "help_text": "This is an advanced option to allow running `Severus` with custom [settings](https://github.com/KolmogorovLab/Severus?tab=readme-ov-file#inputs-and-parameters). The arguments specified in this option will fully override all options set by the workflow. To provide custom arguments to `Severus` from command line proceed as follow: `--severus_args=\"--preset traditional\"`"
+                }
+            }
+        },
+        "mod_options": {
+            "title": "Methylation calling options",
+            "type": "object",
+            "description": "Options specific to the methyl calling subworkflow.",
+            "properties": {
+                "force_strand": {
+                    "title": "Force strand",
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Require modkit to call strand-aware modifications.",
+                    "help_test": "By default strand calls are collapsed (strand reported as '.'). Enabling this will force stranding to be considered when calling modifications, creating one output per modification per strand and the report will be tabulated by both modification and strand."
+                },
+                "diff_mod": {
+                    "title": "Run differential modified base analysis",
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Detect differentially modified loci and regions with DSS.",
+                    "help_test": "By default the workflow will run DSS to detect differentially modified loci and regions. DSS can be computationally intensive and can therefore be disabled by setting this to false."
+                },
+                "modkit_args": {
+                    "title": "Modkit additional arguments",
+                    "type": "string",
+                    "description": "The additional options for modkit.",
+                    "hidden": true,
+                    "help_text": "This is an advanced option to allow running modkit with custom settings. The arguments specified in this option will fully override all options set by the workflow. To provide custom arguments to `modkit` from command line proceed as follow: `--modkit_args=\"--preset traditional\"`"
+                }
+            }
+        },
+        "multiprocessing_options": {
+            "title": "Multiprocessing Options",
+            "type": "object",
+            "fa_icon": "far fa-gauge-high",
+            "description": "Options for configuring the common processes across the different subworkflows.",
+            "help_text": "These options do not need to be changed for typical use, but allow fine tuning of workflows for users who want more control over the workflow.",
+            "properties": {
+                "ubam_map_threads": {
+                    "type": "integer",
+                    "default": 8,
+                    "description": "Set max number of threads to use for aligning reads from uBAM (limited by config executor cpus)."
+                },
+                "ubam_sort_threads": {
+                    "type": "integer",
+                    "default": 3,
+                    "description": "Set max number of threads to use for sorting and indexing aligned reads from uBAM (limited by config executor cpus)."
+                },
+                "ubam_bam2fq_threads": {
+                    "type": "integer",
+                    "default": 1,
+                    "description": "Set max number of threads to use for uncompressing uBAM and generating FASTQ for alignment (limited by config executor cpus)."
+                },
+                "severus_threads": {
+                    "type": "integer",
+                    "default": 8,
+                    "minimum": 4,
+                    "description": "Total number of threads to use for `Severus` (minimum of 4 and limited by config executor cpus)."
+                },
+                "dss_threads": {
+                    "type": "integer",
+                    "default": 1,
+                    "maximum": 4,
+                    "description": "Total number of threads to use in the DSS differential modification analysis (limited by config executor cpus).",
+                    "help_test": "The DSS R Package step identifies differentially modified loci and regions, a computationally intensive step. Increasing this parameter speeds up the analysis, at the cost of significantly increased memory requirements."
+                },
+                "modkit_threads": {
+                    "type": "integer",
+                    "default": 4,
+                    "description": "Total number of threads to use in modkit modified base calling (limited by config executor cpus)."
+                },
+                "haplotype_filter_threads": {
+                    "type": "integer",
+                    "default": 4,
+                    "description": "Set max number of threads to use for the haplotype filtering stage in SNV workflow (limited by config executor cpus)."
+                }
+            }
+        },
+        "advanced_options": {
+            "title": "Advanced Options",
+            "type": "object",
+            "fa_icon": "far fa-question-circle",
+            "description": "Advanced options for configuring processes inside the workflow.",
+            "help_text": "These advanced options do not need to be changed for typical use, but allow fine tuning of workflows for users who want more control over the workflow.",
+            "properties": {
+                "GVCF": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Enable to output a gVCF file in addition to the VCF outputs (experimental).",
+                    "help_text": "By default the the workflow outputs a VCF file containing only records where a variant has been detected. Enabling this option will output additionally a gVCF with records spanning all reference positions regardless of whether a variant was detected in the sample."
+                },
+                "override_basecaller_cfg": {
+                    "title": "Basecaller configuration",
+                    "type": "string",
+                    "description": "Name of the model to use for converting signal and selecting a small variant calling model.",
+                    "help_text": "The workflow will attempt to find the basecaller model from the headers of your input data, providing a value for this option will override the model found in the data. If the model cannot be found in the header, it must be provided with this option as the basecaller model is required for small variant calling. The basecaller model is used to automatically select the appropriate small variant calling model. The model list shows all models that are compatible for small variant calling with this workflow. You should select 'custom' to override the basecaller_cfg with clair3_model_path.",
+                    "enum": [
+                        "dna_r10.4.1_e8.2_400bps_sup@v4.2.0",
+                        "dna_r10.4.1_e8.2_400bps_hac@v4.2.0",
+                        "dna_r10.4.1_e8.2_400bps_sup@v4.1.0",
+                        "dna_r10.4.1_e8.2_400bps_hac@v4.1.0",
+                        "dna_r10.4.1_e8.2_400bps_sup@v3.5.2",
+                        "dna_r9.4.1_e8_hac@v3.3",
+                        "dna_r9.4.1_e8_sup@v3.3",
+                        "dna_r9.4.1_450bps_hac",
+                        "dna_r9.4.1_450bps_hac_prom"
+                    ]
+                }
+            }
+        },
+        "misc": {
+            "title": "Miscellaneous Options",
+            "type": "object",
+            "description": "Everything else.",
+            "default": "",
+            "properties": {
+                "disable_ping": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Enable to prevent sending a workflow ping.",
+                    "overrides": {
+                        "epi2mecloud": {
+                            "hidden": true
+                        }
+                    }
+                },
+                "help": {
+                    "type": "boolean",
+                    "description": "Display help text.",
+                    "fa_icon": "fas fa-question-circle",
+                    "default": false,
+                    "hidden": true
+                },
+                "version": {
+                    "type": "boolean",
+                    "description": "Display version and exit.",
+                    "fa_icon": "fas fa-question-circle",
+                    "default": false,
+                    "hidden": true
+                },
+                "store_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "hidden": true
+                }
+            }
+        }
+    },
+    "allOf": [
+        {
+            "$ref": "#/definitions/workflow"
+        },
+        {
+            "$ref": "#/definitions/input"
+        },
+        {
+            "$ref": "#/definitions/snv_options"
+        },
+        {
+            "$ref": "#/definitions/sv_calling"
+        },
+        {
+            "$ref": "#/definitions/mod_options"
+        },
+        {
+            "$ref": "#/definitions/advanced_options"
+        },
+        {
+            "$ref": "#/definitions/multiprocessing_options"
+        },
+        {
+            "$ref": "#/definitions/qc_options"
+        },
+        {
+            "$ref": "#/definitions/sv_calling"
+        },
+        {
+            "$ref": "#/definitions/misc"
+        }
+    ],
+    "properties": {
+        "aws_image_prefix": {
+            "type": "string",
+            "hidden": true
+        },
+        "aws_queue": {
+            "type": "string",
+            "hidden": true
+        },
+        "monochrome_logs": {
+            "type": "boolean"
+        },
+        "validate_params": {
+            "type": "boolean",
+            "default": true
+        },
+        "show_hidden_params": {
+            "type": "boolean"
+        }
+    },
+    "resources": {
+        "recommended": {
+            "cpus": 64,
+            "memory": "256GB"
+        },
+        "minimum": {
+            "cpus": 16,
+            "memory": "48GB"
+        },
+        "run_time": "Variable depending on sequencing modality (targeted or whole genome sequencing), as well as coverage and the individual analyses requested. For instance, a complete analysis of a 60X/30X Tumor/Normal pair with default settings takes approximately 6h 30m using the recommended requirements.",
+        "arm_support": false
+    }
+}

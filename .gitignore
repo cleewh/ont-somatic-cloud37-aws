@@ -1,0 +1,29 @@
+# Python / test caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+
+# OS junk
+.DS_Store
+
+# Large genomics artifacts (live in S3, never in git)
+*.bam
+*.bai
+*.cram
+*.crai
+*.fa
+*.fna
+*.fasta
+*.fai
+*.dict
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+
+# Build / workflow archives (rebuilt from source; staged to S3)
+*.zip
+
+# Local scratch
+tmp/
+scratch/

@@ -1,0 +1,43 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrAuth",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPushCloud37Align",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage"
+      ],
+      "Resource": "arn:aws:ecr:ap-southeast-1:687677765589:repository/cloud37-align"
+    },
+    {
+      "Sid": "S3ReadBuildContext",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::ont-lrs-somatic-poc-apse1-687677765589",
+        "arn:aws:s3:::ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/cloud37-build/*"
+      ]
+    },
+    {
+      "Sid": "S3WriteBuildLog",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::ont-lrs-somatic-poc-apse1-687677765589/workflow-artifacts/cloud37-build/build-logs/*"
+    }
+  ]
+}

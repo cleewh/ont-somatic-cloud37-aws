@@ -1,0 +1,11 @@
+# Credential hygiene: never send secrets into the docker build context / image.
+**/.aws
+**/.aws/**
+**/credentials
+**/*credentials*
+**/.env
+**/*.pem
+**/*.key
+**/id_rsa*
+**/.git
+**/*.zip

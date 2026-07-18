@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  cloud37 image build (CodeBuild) - arch-independent, no local Docker required.
+  A single CodeBuild project (privileged, amd64) mirrors the 8 ontresearch/* containers
+  to ECR and builds + pushes the cloud37-align container. Source is the build-context
+  ZIP (Dockerfile + align_job.sh + merge_job.sh) in S3. TRANSFERABLE: no account values baked in.
+
+Parameters:
+  Bucket:
+    Type: String
+    Description: S3 bucket holding the build-context ZIP.
+  BuildContextKey:
+    Type: String
+    Default: workflow-artifacts/cloud37-build-context.zip
+    Description: S3 key of the build-context ZIP (Dockerfile + align_job.sh + merge_job.sh at root).
+  EcrRepositoryPrefix:
+    Type: String
+    Default: docker-hub
+    Description: ECR prefix that mirrors the ontresearch/* containers.
+  AlignRepoName:
+    Type: String
+    Default: cloud37-align
+    Description: ECR repository name for the align/merge container.
+
+Resources:
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codebuild.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: cloud37-codebuild
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: Logs
+                Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*
+              - Sid: EcrAuth
+                Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Sid: EcrRepoAdmin
+                Effect: Allow
+                Action:
+                  - ecr:CreateRepository
+                  - ecr:DescribeRepositories
+                  - ecr:DescribeImages
+                  - ecr:PutImageScanningConfiguration
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${EcrRepositoryPrefix}/*
+                  - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${AlignRepoName}
+              - Sid: EcrPush
+                Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${EcrRepositoryPrefix}/*
+                  - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${AlignRepoName}
+              - Sid: S3ReadBuildContext
+                Effect: Allow
+                Action: [s3:GetObject]
+                Resource: !Sub arn:${AWS::Partition}:s3:::${Bucket}/${BuildContextKey}
+
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: cloud37-image-build
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      TimeoutInMinutes: 60
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/amazonlinux-x86_64-standard:5.0
+        PrivilegedMode: true          # required for the Docker daemon
+        EnvironmentVariables:
+          - { Name: ECR_PREFIX,  Value: !Ref EcrRepositoryPrefix }
+          - { Name: ALIGN_REPO,  Value: !Ref AlignRepoName }
+          - { Name: ECR,         Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com' }
+      Source:
+        Type: S3
+        Location: !Sub '${Bucket}/${BuildContextKey}'
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo "ECR login ${ECR}"
+                - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR"
+            build:
+              commands:
+                - |
+                  set -euo pipefail
+                  IMAGES="\
+                  wf-somatic-variation:sha5d62edcc2853ce1fd9afc244ff87e65788c4c596 \
+                  wf-somatic-snp:sha86599ecdb46472d01e0b7c2704683f6aee8a82dd \
+                  clairs-to:sha0bed006dfad374401e9410b44d67e6609f7936e9 \
+                  modkit:shaa7bf2b62946eeb7646b9b9d60b892edfc3b3a52c \
+                  dss:sha927196d7e068cc49d5a41bcc3db91b9bdf723e7a \
+                  wf-somatic-sv:sha4b941d684b3310e8524ce169da2d358a6631fab0 \
+                  wf-common:sha72f3517dd994984e0e2da0b97cb3f23f8540be4b \
+                  snpeff:sha313729d816872d70b410752001a0e2654eb88807"
+                  for img in $IMAGES; do
+                    name="${img%%:*}"; tag="${img##*:}"; repo="${ECR_PREFIX}/ontresearch/${name}"
+                    aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1 \
+                      || aws ecr create-repository --repository-name "$repo" --image-scanning-configuration scanOnPush=true >/dev/null
+                    if aws ecr describe-images --repository-name "$repo" --image-ids imageTag="$tag" >/dev/null 2>&1; then
+                      echo "skip (already mirrored): ${repo}:${tag}"
+                    else
+                      echo "mirror: ontresearch/${name}:${tag}"
+                      docker pull "ontresearch/${name}:${tag}"
+                      docker tag  "ontresearch/${name}:${tag}" "${ECR}/${repo}:${tag}"
+                      docker push "${ECR}/${repo}:${tag}"
+                    fi
+                  done
+                - aws ecr describe-repositories --repository-names "$ALIGN_REPO" >/dev/null 2>&1 || aws ecr create-repository --repository-name "$ALIGN_REPO" --image-scanning-configuration scanOnPush=true >/dev/null
+                - docker build --platform linux/amd64 -t "${ECR}/${ALIGN_REPO}:latest" .
+                - docker push "${ECR}/${ALIGN_REPO}:latest"
+
+Outputs:
+  BuildProjectName:
+    Description: Start with 'aws codebuild start-build --project-name <this>'.
+    Value: !Ref BuildProject

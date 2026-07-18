@@ -1,0 +1,38 @@
+{
+  "status": "pass",
+  "expected_basecaller": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0",
+  "tumor_bams": [
+    {
+      "path": "PAU59949.d052sup4305mCG_5hmCGvHg38.bam",
+      "sm_tags": [
+        "COLO829"
+      ],
+      "basecaller_model": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0"
+    },
+    {
+      "path": "PAU61426.d052sup4305mCG_5hmCGvHg38.bam",
+      "sm_tags": [
+        "COLO829"
+      ],
+      "basecaller_model": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0"
+    }
+  ],
+  "normal_bam": {
+    "path": "PAU59807.d052sup4305mCG_5hmCGvHg38.bam",
+    "sm_tags": [
+      "COLO829BL"
+    ],
+    "basecaller_model": "dna_r10.4.1_e8.2_400bps_sup@v4.3.0"
+  },
+  "mismatches": [],
+  "notes": {
+    "design_deviation": "expected_basecaller was parameterized to dna_r10.4.1_e8.2_400bps_sup@v4.3.0 (the version actually used to basecall the ONT public COLO829 dataset) instead of the design's original constant dna_r10.4.1_e8.2_400bps_sup@v4.2.0. ONT publishes only v4.3.0 SUP-basecalled BAMs for COLO829 under s3://ont-open-data/colo829_2024.03/. Design & downstream (parameter template, StartAHORun override_basecaller_cfg) MUST be updated to v4.3.0 by a subsequent task.",
+    "compat_check_input_note": "Compatibility check was executed on the first 10 MiB of each source BAM (which contains the complete @HD/@SQ/@RG/@PG header). samtools 1.21 emits a benign 'EOF marker is absent' warning on the truncated headers; the extraction still returns the full header and the decision function is unaffected. The BAM paths recorded here reference the full ONT open-data source filenames rather than the local header-only filenames used at check time.",
+    "source_urls": {
+      "tumor1": "s3://ont-open-data/colo829_2024.03/basecalls/colo829/sup/PAU59949.d052sup4305mCG_5hmCGvHg38.bam",
+      "tumor2": "s3://ont-open-data/colo829_2024.03/basecalls/colo829/sup/PAU61426.d052sup4305mCG_5hmCGvHg38.bam",
+      "normal": "s3://ont-open-data/colo829_2024.03/basecalls/colo829bl/sup/PAU59807.d052sup4305mCG_5hmCGvHg38.bam"
+    },
+    "utc_timestamp": "20260702T230200Z"
+  }
+}
