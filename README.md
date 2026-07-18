@@ -84,6 +84,149 @@ scripts/                          # analysis / diagnostics one-offs used during 
 
 ---
 
+## Getting started (new to AWS)
+
+If you have not used AWS before, work through this once. You need three CLI tools and
+an AWS account with permission to create the resources (IAM roles, Batch, HealthOmics,
+S3, Step Functions, CloudFormation, CodeBuild).
+
+### 1. Install and authenticate
+
+```bash
+# AWS CLI v2 — https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+aws --version                      # expect aws-cli/2.x
+
+# Log in. Two common ways:
+aws configure                      # long-lived access keys (simplest), OR
+aws configure sso                  # AWS IAM Identity Center / SSO (recommended at orgs)
+
+# Verify you are authenticated and note your account + region
+aws sts get-caller-identity
+aws configure get region           # set one if empty, e.g. ap-southeast-1
+```
+
+You also need **Docker is NOT required** on your machine — the container image is built
+in the cloud by CodeBuild. (Only `BUILD_MODE=local` needs Docker; the default does not.)
+
+### 2. Concepts in 60 seconds
+
+- **S3** is where all data lives (inputs, aligned BAMs, results). A **bucket** is a
+  top-level container; an **object** is a file identified by its full **key/URI**
+  (`s3://my-bucket/inputs/ubam/tumor1.bam`).
+- **AWS Batch** runs the alignment/merge on on-demand EC2 virtual machines that scale
+  up when there is work and terminate when idle (you pay only while they run).
+- **AWS HealthOmics** runs the genomics variant-calling workflow (managed compute).
+- **Step Functions** is the conductor that runs the align → merge → trigger sequence.
+- **CloudFormation** creates all of the above from the template files in this repo
+  (infrastructure as code — reproducible, and deletable in one command).
+
+### 3. One-time account setup
+
+Create an S3 bucket (or reuse one), then run the bootstrap. This mirrors the required
+containers to your ECR, builds the align image, stages the reference genome, and
+deploys the three CloudFormation stacks. You need the ONT workflow definition ZIP
+(the cloud-adapted `wf-somatic-variation`; see `production/cloud-pipeline/`).
+
+```bash
+aws s3 mb s3://MY-BUCKET --region ap-southeast-1     # if you don't have a bucket yet
+
+export SUBNETS=subnet-aaa,subnet-bbb,subnet-ccc      # subnets in your VPC for Batch
+export SECURITY_GROUP=sg-xxxx                         # a security group in that VPC
+./production/cloud37/bootstrap.sh ap-southeast-1 MY-BUCKET <path-or-s3-uri-to-workflow.zip>
+```
+
+> Not sure what to use for `SUBNETS`/`SECURITY_GROUP`? Every AWS account has a **default
+> VPC** with default subnets and a default security group. Find them with:
+> `aws ec2 describe-subnets --query 'Subnets[].SubnetId'` and
+> `aws ec2 describe-security-groups --query 'SecurityGroups[?GroupName==\`default\`].GroupId'`.
+> The security group must allow outbound HTTPS (the default one does).
+
+### 4. Upload your inputs to S3
+
+Copy your tumor/normal BAMs and the reference into the bucket. **List each file
+explicitly** (see "Coming from on-prem?" below — there is no input folder):
+
+```bash
+aws s3 cp tumor1.ubam.bam s3://MY-BUCKET/inputs/ubam/tumor1.ubam.bam
+aws s3 cp tumor2.ubam.bam s3://MY-BUCKET/inputs/ubam/tumor2.ubam.bam
+aws s3 cp normal.ubam.bam s3://MY-BUCKET/inputs/ubam/normal.ubam.bam
+# reference FASTA + its .fai (bootstrap can stage GRCh38 for you; or upload your own)
+aws s3 cp GRCh38_no_alt_analysis_set.fna     s3://MY-BUCKET/inputs/references/
+aws s3 cp GRCh38_no_alt_analysis_set.fna.fai s3://MY-BUCKET/inputs/references/
+```
+
+### 5. Run your first pair
+
+Get the state machine ARN from the app stack, write the input JSON, and start it:
+
+```bash
+SM=$(aws cloudformation describe-stacks --stack-name cloud37 --region ap-southeast-1 \
+      --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" --output text)
+
+cat > pair.json <<'JSON'
+{
+  "sample_name": "COLO829",
+  "bam_tumor":  "s3://MY-BUCKET/inputs/ubam/tumor1.ubam.bam",
+  "bam_tumor2": "s3://MY-BUCKET/inputs/ubam/tumor2.ubam.bam",
+  "bam_normal": "s3://MY-BUCKET/inputs/ubam/normal.ubam.bam",
+  "ref":        "s3://MY-BUCKET/inputs/references/GRCh38_no_alt_analysis_set.fna",
+  "output_prefix": "s3://MY-BUCKET/outputs/COLO829-run1/",
+  "override_basecaller_cfg": "dna_r10.4.1_e8.2_400bps_sup@v4.2.0"
+}
+JSON
+
+aws stepfunctions start-execution --state-machine-arn "$SM" \
+  --name COLO829-run1 --input file://pair.json --region ap-southeast-1
+```
+
+### 6. Monitor progress
+
+```bash
+# Overall orchestration (align -> merge -> trigger): open the Step Functions console,
+# or:
+aws stepfunctions describe-execution --execution-arn <arn-from-start> \
+  --region ap-southeast-1 --query 'status'
+
+# Once the HealthOmics run is triggered, watch it (run id is in manifest.json):
+aws s3 cp s3://MY-BUCKET/outputs/COLO829-run1/manifest.json - --region ap-southeast-1
+aws omics get-run --id <run-id> --region ap-southeast-1 --query 'status'
+```
+
+Expect roughly ~5 h for align+merge, then ~8-9 h for the HealthOmics variant run.
+
+### 7. Get your results
+
+All outputs are under the `output_prefix` you chose. Results VCFs, methylation, SV, and
+QC are under `<output_prefix>/<run-id>/definition/output/<sample_name>/`. See
+"Where the intermediate and output files live" below.
+
+---
+
+## Coming from on-prem? How inputs differ (read this first)
+
+On-prem, `wf-somatic-variation` is pointed at a **folder** — Nextflow reads a local
+directory and enumerates the BAMs inside it (via `file()` / `Channel.fromPath` over a
+POSIX filesystem). **That does not work on AWS HealthOmics.** HealthOmics stages each
+input *parameter* as a single mounted file; it cannot list the contents of an S3
+"folder", and neither S3 directory URIs (`s3://…/tumor_bams/`) nor glob URIs
+(`s3://…/*.bam`) work — both were tried and both fail at input ingress.
+
+So the cloud pipeline takes **one explicit S3 URI per input file**, not a folder:
+
+| On-prem (folder) | Cloud (this pipeline) |
+|------------------|-----------------------|
+| point at `…/tumor_bams/` containing 2 tumor BAMs | pass `bam_tumor` = tumor1 URI **and** `bam_tumor2` = tumor2 URI |
+| point at `…/normal_bams/` containing 1 normal BAM | pass `bam_normal` = the normal URI |
+| Nextflow merges the 2 tumors internally | the Batch **merge** step produces one `tumor_aligned.bam` for HealthOmics |
+
+In short: **list your files explicitly.** If you have two tumor BAMs, give both URIs
+(`bam_tumor` + `bam_tumor2`); the pipeline aligns each and merges them for you. There is
+no "input folder" parameter.
+
+> S3 is object storage, not a filesystem. `s3://bucket/inputs/ubam/tumor1.bam` is a
+> single object (a "key"). A trailing-slash "prefix" like `s3://bucket/inputs/ubam/`
+> looks like a folder in the console but is not something the workflow can enumerate.
+
 ## Input options
 
 Start a Step Functions execution with a JSON payload. Inputs may be **unaligned
@@ -277,6 +420,50 @@ See `production/cloud37/README.md` for the step-by-step / manual path.
 - **`cloudformation deploy` reuses previous parameter values** for any parameter not
   passed in `--parameter-overrides` — it does *not* fall back to a changed template
   default. Pass changed params explicitly.
+
+---
+
+## Cost controls & cleanup (important for new users)
+
+Cloud resources cost money while they exist or run. This pipeline is built to avoid
+surprises, but know these levers:
+
+- **Compute is on-demand and auto-scaling.** Batch launches EC2 only when a run needs
+  it and terminates instances when idle (`MinvCpus: 0`). HealthOmics releases its
+  compute on any terminal state. There is **no always-on server** to forget about.
+- **The run group is a safety cap.** `cloud37-prereqs` creates a HealthOmics run group
+  with a **72 h max duration** and a max concurrent-run limit — a stuck/hung run is
+  killed before it can run up unbounded cost.
+- **Budget alarm (recommended).** Set an AWS Budgets alert so you're emailed if spend
+  exceeds a threshold:
+  ```bash
+  # Console: Billing → Budgets → Create budget (monthly, e.g. $500, email alert)
+  ```
+- **Storage is the lingering cost.** Aligned BAMs (~150-300 GB each) and results sit in
+  S3 and bill per GB-month until you delete them. Clean up when done:
+  ```bash
+  aws s3 rm s3://MY-BUCKET/outputs/COLO829-run1/ --recursive   # a pair's outputs
+  ```
+  Consider an S3 lifecycle rule to auto-expire or archive `outputs/` after N days.
+- **Cancel a run** you no longer need:
+  ```bash
+  aws omics cancel-run --id <run-id> --region ap-southeast-1
+  aws stepfunctions stop-execution --execution-arn <arn> --region ap-southeast-1
+  ```
+
+### Tear everything down
+
+The infrastructure is three CloudFormation stacks — delete them to remove all
+compute/orchestration resources (this does **not** touch your S3 data):
+
+```bash
+aws cloudformation delete-stack --stack-name cloud37 --region ap-southeast-1
+aws cloudformation delete-stack --stack-name cloud37-build --region ap-southeast-1
+aws cloudformation delete-stack --stack-name cloud37-prereqs --region ap-southeast-1
+```
+
+Then, if you want the data gone too, empty/delete the S3 bucket and the ECR
+repositories (`cloud37-align`, `docker-hub/ontresearch/*`).
 
 ---
 
