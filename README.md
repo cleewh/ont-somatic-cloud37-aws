@@ -51,8 +51,10 @@ production/cloud37/                # the B1c pipeline (this README's subject)
   merge_job.sh                     # merges 2 aligned tumor BAMs into 1
   write_manifest.py                # manifest Lambda reference
   deploy.params.json              # the only file a new account edits
-production/cloud-pipeline/         # the HealthOmics Nextflow workflow (cloud36 unified + rs tuning)
-  main.nf, nextflow.config, nextflow_schema.json, lib/_ingress.nf, modules/…
+production/cloud-pipeline/         # cloud-adapted files of the HealthOmics workflow (overlay on ONT v1.5.1)
+  build_workflow_zip.py            # rebuilds the exact workflow ZIP HealthOmics ran (cloud37-variant-rs3)
+  main.nf, nextflow.config, nextflow_schema.json, lib/_ingress.nf, modules/…, workflows/…
+  LICENSE                          # ONT Public License v1.0 (research use only) for the ONT code
 iam/                               # HealthOmics run role policy documents
 scripts/                          # analysis / diagnostics one-offs used during development
 ```
@@ -150,17 +152,21 @@ in the cloud by CodeBuild. (Only `BUILD_MODE=local` needs Docker; the default do
 
 ### 3. One-time account setup
 
-Create an S3 bucket (or reuse one), then run the bootstrap. This mirrors the required
-containers to your ECR, builds the align image, stages the reference genome, and
-deploys the three CloudFormation stacks. You need the ONT workflow definition ZIP
-(the cloud-adapted `wf-somatic-variation`; see `production/cloud-pipeline/`).
+Create an S3 bucket (or reuse one), build the workflow ZIP, then run the bootstrap.
+`build_workflow_zip.py` downloads ONT's `wf-somatic-variation` v1.5.1 from GitHub,
+applies the cloud-adapted files in `production/cloud-pipeline/`, and confirms the
+result matches the validated `cloud37-variant-rs3` workflow. The bootstrap mirrors the
+required containers to your ECR, builds the align image, stages the reference genome,
+and deploys the three CloudFormation stacks.
 
 ```bash
 aws s3 mb s3://MY-BUCKET --region ap-southeast-1     # if you don't have a bucket yet
 
+python3 production/cloud-pipeline/build_workflow_zip.py   # writes cloud37-variant-workflow.zip
+
 export SUBNETS=subnet-aaa,subnet-bbb,subnet-ccc      # subnets in your VPC for Batch
 export SECURITY_GROUP=sg-xxxx                         # a security group in that VPC
-./production/cloud37/bootstrap.sh ap-southeast-1 MY-BUCKET <path-or-s3-uri-to-workflow.zip>
+./production/cloud37/bootstrap.sh ap-southeast-1 MY-BUCKET cloud37-variant-workflow.zip
 ```
 
 > Not sure what to use for `SUBNETS`/`SECURITY_GROUP`? Every AWS account has a **default
@@ -348,6 +354,9 @@ Everything for one pair lives under the single `output_prefix` you pass in:
 
 The merged tumor BAM is written by `merge_job.sh` (`samtools merge -c -p` of the two
 coordinate-sorted per-tumor BAMs, then reheader to a single `SM` tag, then index).
+Every aligned BAM keeps the read groups (`@RG`: flow cell, platform, basecaller model)
+and program history (`@PG`) of its source uBAM, so the merged tumor carries all tumor
+read groups, each with `SM` set to `sample_name`.
 
 ---
 
@@ -383,6 +392,10 @@ All figures are for the COLO829 pair (tumor ~96x merged / normal ~59x) in
 
 - **Batch container job role** must trust `ecs-tasks.amazonaws.com` (a dedicated
   `TaskRole`), not the EC2 instance role — otherwise "ECS was unable to assume the role".
+- **HealthOmics ECR repository policy** — each mirrored `docker-hub/ontresearch/*` repo
+  needs a resource policy granting `omics.amazonaws.com` pull access; the run role's IAM
+  permissions alone are not enough. `bootstrap.sh` attaches it to any repo that has no
+  policy (it never overwrites an existing one, and stops if that one lacks HealthOmics access).
 - **`omics:startRun`** via the Step Functions SDK integration requires a `RequestId`
   idempotency token — injected with `States.UUID()`.
 - **Large scratch volume** (1024 GB gp3) — 60x uBAMs are ~130 GB and the merged tumor
@@ -390,6 +403,12 @@ All figures are for the COLO829 pair (tumor ~96x merged / normal ~59x) in
 - **uBAM classification** in `align_job.sh` — `samtools view -H | grep -c '^@SQ'` returns
   exit 1 on a uBAM (no `@SQ` lines) and `head -1` triggers SIGPIPE; both must be guarded
   (`|| true` + `set +o pipefail`) or `set -e` aborts the job.
+- **Read-group header lost at alignment** — the `samtools fastq | minimap2` stream drops
+  the uBAM header, so aligned BAMs had no `@RG` lines (reads kept orphaned `RG:Z` tags)
+  and the merge's `SM` rename had nothing to act on. `align_job.sh` now merges the source
+  header back in, producing byte-for-byte the header ONT's `reheader_samstream` step
+  writes in the HealthOmics alignment. Variant calls were not affected, because the
+  workflow takes `sample_name` and `override_basecaller_cfg` as parameters.
 
 ---
 
@@ -470,14 +489,15 @@ usually granted quickly.
 
 Everything is parameterized — no account-specific values are baked into the templates.
 The one-command path (`bootstrap.sh`) mirrors the 8 `ontresearch/*` containers to your
-ECR, builds the align image (via **CodeBuild**, so no local Docker and any host
-architecture works), stages the reference, deploys the prereqs + app stacks, and wires
-`deploy.params.json`:
+ECR (with the repository policy HealthOmics needs to pull them), builds the align image
+(via **CodeBuild**, so no local Docker and any host architecture works), stages the
+reference, deploys the prereqs + app stacks, and wires `deploy.params.json`:
 
 ```bash
+python3 production/cloud-pipeline/build_workflow_zip.py   # -> cloud37-variant-workflow.zip
 export SUBNETS=subnet-aaa,subnet-bbb,subnet-ccc      # your VPC subnets for Batch
 export SECURITY_GROUP=sg-xxxx                         # your Batch security group
-./production/cloud37/bootstrap.sh <REGION> <BUCKET> <WORKFLOW_ZIP>
+./production/cloud37/bootstrap.sh <REGION> <BUCKET> cloud37-variant-workflow.zip
 ```
 
 Three CloudFormation stacks are created:
@@ -560,3 +580,9 @@ Built and validated against ONT `epi2me-labs/wf-somatic-variation` v1.5.1 with t
 COLO829/COLO829BL public dataset (`s3://ont-open-data/colo829_2024.03/`). The HealthOmics
 workflow is a cloud-adapted fork (`cloud37-variant-rs3`) with an internal 2-tumor merge
 path and right-sizing derived from measured per-task performance reports.
+`production/cloud-pipeline/` holds only the 8 files that differ from ONT's v1.5.1
+release; `build_workflow_zip.py` rebuilds the full 80-file definition from the release
+and verifies it is identical to the version registered in HealthOmics.
+
+The ONT code is licensed under the Oxford Nanopore Technologies PLC. Public License v1.0
+(`production/cloud-pipeline/LICENSE`), which permits use for research purposes only.

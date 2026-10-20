@@ -25,8 +25,8 @@ aws s3 cp "$T2_BAM" t2.bam
 
 # sort-preserving merge of two coordinate-sorted aligned BAMs (combined header keeps both @RG)
 samtools merge -@ "$THREADS" -f -c -p merged.bam t1.bam t2.bam
-# normalise SM tag to the sample name (in-place reheader when header length allows)
-samtools view -H merged.bam | sed "s/\tSM:[^\t]*/\tSM:${SAMPLE}/" > hdr.sam
+# normalise the @RG SM tag to the sample name (in-place reheader when header length allows)
+samtools view -H --no-PG merged.bam | sed "s/\tSM:[^\t]*/\tSM:${SAMPLE}/" > hdr.sam
 if samtools reheader -i hdr.sam merged.bam 2>/dev/null; then :; else
     samtools reheader hdr.sam merged.bam > merged_fixed.bam && mv merged_fixed.bam merged.bam
 fi

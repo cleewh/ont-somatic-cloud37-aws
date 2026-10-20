@@ -2,7 +2,8 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   cloud37 image build (CodeBuild) - arch-independent, no local Docker required.
   A single CodeBuild project (privileged, amd64) mirrors the 8 ontresearch/* containers
-  to ECR and builds + pushes the cloud37-align container. Source is the build-context
+  to ECR, attaches the repository policy HealthOmics needs to pull them, and builds +
+  pushes the cloud37-align container. Source is the build-context
   ZIP (Dockerfile + align_job.sh + merge_job.sh) in S3. TRANSFERABLE: no account values baked in.
 
 Parameters:
@@ -69,6 +70,12 @@ Resources:
                 Resource:
                   - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${EcrRepositoryPrefix}/*
                   - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${AlignRepoName}
+              - Sid: EcrRepoPolicyForHealthOmics
+                Effect: Allow
+                Action:
+                  - ecr:GetRepositoryPolicy
+                  - ecr:SetRepositoryPolicy
+                Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${EcrRepositoryPrefix}/*
               - Sid: S3ReadBuildContext
                 Effect: Allow
                 Action: [s3:GetObject]
@@ -105,6 +112,9 @@ Resources:
               commands:
                 - |
                   set -euo pipefail
+                  # HealthOmics only pulls from a private repo whose resource policy grants the
+                  # omics.amazonaws.com service principal; the run role's IAM permissions are not enough.
+                  OMICS_POLICY='{"Version":"2012-10-17","Statement":[{"Sid":"HealthOmicsAccess","Effect":"Allow","Principal":{"Service":"omics.amazonaws.com"},"Action":["ecr:BatchGetImage","ecr:GetDownloadUrlForLayer","ecr:BatchCheckLayerAvailability"]}]}'
                   IMAGES="\
                   wf-somatic-variation:sha5d62edcc2853ce1fd9afc244ff87e65788c4c596 \
                   wf-somatic-snp:sha86599ecdb46472d01e0b7c2704683f6aee8a82dd \
@@ -118,6 +128,20 @@ Resources:
                     name="${img%%:*}"; tag="${img##*:}"; repo="${ECR_PREFIX}/ontresearch/${name}"
                     aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1 \
                       || aws ecr create-repository --repository-name "$repo" --image-scanning-configuration scanOnPush=true >/dev/null
+                    # Attach the HealthOmics pull policy if the repo has none; never overwrite an existing policy.
+                    if pol="$(aws ecr get-repository-policy --repository-name "$repo" --query policyText --output text 2>&1)"; then
+                      case "$pol" in
+                        *omics.amazonaws.com*) echo "policy ok: ${repo}" ;;
+                        *) echo "ERROR: ${repo} has a repository policy without HealthOmics (omics.amazonaws.com) pull access. Add the OMICS_POLICY statement to it and re-run."; exit 1 ;;
+                      esac
+                    else
+                      case "$pol" in
+                        *RepositoryPolicyNotFoundException*)
+                          aws ecr set-repository-policy --repository-name "$repo" --policy-text "$OMICS_POLICY" >/dev/null
+                          echo "policy set (HealthOmics pull): ${repo}" ;;
+                        *) echo "$pol"; exit 1 ;;
+                      esac
+                    fi
                     if aws ecr describe-images --repository-name "$repo" --image-ids imageTag="$tag" >/dev/null 2>&1; then
                       echo "skip (already mirrored): ${repo}:${tag}"
                     else

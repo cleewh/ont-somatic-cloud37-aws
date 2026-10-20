@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # cloud37 one-time account bootstrap.
 # Automates every prerequisite except supplying your own tumor/normal BAMs:
-#   1. Mirror the 8 ontresearch/* containers into your ECR (docker-hub/* prefix)
+#   1. Mirror the 8 ontresearch/* containers into your ECR (docker-hub/* prefix) and
+#      attach the repository policy HealthOmics needs to pull them
 #   2. Build + push the align/merge container (cloud37-align)
 #   3. Stage the GRCh38 reference genome into your bucket
 #   4. Upload the variant-caller workflow definition ZIP
@@ -43,6 +44,34 @@ IMAGES=(
   "wf-common:sha72f3517dd994984e0e2da0b97cb3f23f8540be4b"
   "snpeff:sha313729d816872d70b410752001a0e2654eb88807"
 )
+
+# HealthOmics only pulls from a private ECR repo whose resource policy grants the
+# omics.amazonaws.com service principal; the run role's IAM permissions are not enough.
+# Keep in sync with OMICS_POLICY in cloud37-build.yaml.
+OMICS_REPO_POLICY='{"Version":"2012-10-17","Statement":[{"Sid":"HealthOmicsAccess","Effect":"Allow","Principal":{"Service":"omics.amazonaws.com"},"Action":["ecr:BatchGetImage","ecr:GetDownloadUrlForLayer","ecr:BatchCheckLayerAvailability"]}]}'
+
+# Attach the HealthOmics pull policy to a mirrored repo if it has none. An existing policy
+# is never overwritten; if it lacks HealthOmics access, stop so it can be fixed by hand.
+ensure_omics_repo_policy() {
+  local repo="$1" pol
+  if pol="$(aws ecr get-repository-policy --repository-name "$repo" --region "$REGION" \
+              --query policyText --output text 2>&1)"; then
+    case "$pol" in
+      *omics.amazonaws.com*) echo "   policy ok: ${repo}" ;;
+      *) echo "   ERROR: ${repo} has a repository policy without HealthOmics (omics.amazonaws.com) pull access." >&2
+         echo "          Add the OMICS_REPO_POLICY statement to it and re-run." >&2
+         return 1 ;;
+    esac
+  else
+    case "$pol" in
+      *RepositoryPolicyNotFoundException*)
+        aws ecr set-repository-policy --repository-name "$repo" --region "$REGION" \
+          --policy-text "$OMICS_REPO_POLICY" >/dev/null
+        echo "   policy set (HealthOmics pull): ${repo}" ;;
+      *) echo "$pol" >&2; return 1 ;;
+    esac
+  fi
+}
 
 ecr_login() {
   aws ecr get-login-password --region "$REGION" \
@@ -102,6 +131,7 @@ build_local() {
     aws ecr describe-repositories --repository-names "$repo" --region "$REGION" >/dev/null 2>&1 \
       || aws ecr create-repository --repository-name "$repo" --region "$REGION" \
            --image-scanning-configuration scanOnPush=true >/dev/null
+    ensure_omics_repo_policy "$repo"
     if aws ecr describe-images --repository-name "$repo" --image-ids imageTag="$tag" \
          --region "$REGION" >/dev/null 2>&1; then
       echo "   already mirrored: ${repo}:${tag}"
