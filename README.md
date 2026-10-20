@@ -16,6 +16,9 @@ This is the **B1c** architecture. The two stages are stitched together by a sing
 Step Functions state machine, so one execution takes raw uBAMs (or aligned BAMs) all
 the way to somatic VCFs, methylation, SV calls, and QC.
 
+**Setting this up in your own AWS account? Follow [SETUP.md](SETUP.md)**, a step-by-step
+guide that Kiro can run for you.
+
 ---
 
 ## Why this architecture (the core optimization)
@@ -41,20 +44,19 @@ methylation / SV calling.
 ## Repository layout
 
 ```
+SETUP.md                           # step-by-step setup + first run in a new AWS account
 production/cloud37/                # the B1c pipeline (this README's subject)
-  cloud37-stack.yaml               # app stack: Step Functions + Batch + manifest Lambda
-  cloud37-prereqs.yaml             # run role + run group + HealthOmics workflow/version (IaC)
-  cloud37-build.yaml               # CodeBuild project to build the align image (no local Docker)
   bootstrap.sh                     # one-command account setup (mirror containers, build, deploy)
+  cloud37-build.yaml               # CodeBuild project: mirror ONT containers, build the align image
+  cloud37-prereqs.yaml             # run role + run group + HealthOmics workflow/version (IaC)
+  cloud37-stack.yaml               # app stack: Step Functions + Batch + manifest Lambda
   Dockerfile                       # align/merge container: minimap2 + samtools + aws-cli
   align_job.sh                     # per-input align job (auto-detects uBAM vs aligned)
   merge_job.sh                     # merges 2 aligned tumor BAMs into 1
-  write_manifest.py                # manifest Lambda reference
-  deploy.params.json              # the only file a new account edits
-production/cloud-pipeline/         # the HealthOmics Nextflow workflow (cloud36 unified + rs tuning)
-  main.nf, nextflow.config, nextflow_schema.json, lib/_ingress.nf, modules/…
-iam/                               # HealthOmics run role policy documents
-scripts/                          # analysis / diagnostics one-offs used during development
+production/cloud-pipeline/         # cloud-adapted files of the HealthOmics workflow (overlay on ONT v1.5.1)
+  build_workflow_zip.py            # rebuilds the exact workflow ZIP HealthOmics ran (cloud37-variant-rs3)
+  main.nf, nextflow.config, nextflow_schema.json, lib/_ingress.nf, modules/…, workflows/…
+  LICENSE                          # ONT Public License v1.0 (research use only) for the ONT code
 ```
 
 ---
@@ -86,8 +88,9 @@ scripts/                          # analysis / diagnostics one-offs used during 
 
 ## Getting started (new to AWS)
 
-If you have not used AWS before, work through this once. You need an AWS account with
-permission to create the resources (IAM roles, Batch, HealthOmics, S3, Step Functions,
+If you have not used AWS before, read this short background, then follow
+[SETUP.md](SETUP.md) for the exact commands. You need an AWS account with permission to
+create the resources (IAM roles, Batch, HealthOmics, S3, Step Functions,
 CloudFormation, CodeBuild).
 
 ### How this works (mental model)
@@ -101,42 +104,7 @@ compute, the Step Functions pipeline, the HealthOmics workflow, IAM roles). Afte
 the pipeline **lives in your AWS account** — the downloaded files were just the source.
 From then on you just upload BAMs to S3 and start runs.
 
-### Where to run the commands (pick one)
-
-- **AWS CloudShell (easiest — nothing to install):** in the AWS web console, click the
-  CloudShell icon in the top toolbar. It's a browser terminal that already has the AWS
-  CLI and `git`, and you're already logged in. Clone the repo there and run bootstrap.
-- **Your own laptop:** install AWS CLI v2, run `aws configure` (or `aws configure sso`)
-  to log in, then clone the repo and run bootstrap.
-
-### 0. Get the code
-
-```bash
-git clone https://github.com/cleewh/ont-somatic-cloud37-aws.git
-cd ont-somatic-cloud37-aws
-```
-(No `git`? On the GitHub page: green **Code** button → **Download ZIP**, then unzip and
-`cd` into the folder.) All `./production/cloud37/...` commands below run from here.
-
-### 1. Install and authenticate (skip the install if using CloudShell)
-
-```bash
-# AWS CLI v2 — https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
-aws --version                      # expect aws-cli/2.x
-
-# Log in. Two common ways:
-aws configure                      # long-lived access keys (simplest), OR
-aws configure sso                  # AWS IAM Identity Center / SSO (recommended at orgs)
-
-# Verify you are authenticated and note your account + region
-aws sts get-caller-identity
-aws configure get region           # set one if empty, e.g. ap-southeast-1
-```
-
-You also need **Docker is NOT required** on your machine — the container image is built
-in the cloud by CodeBuild. (Only `BUILD_MODE=local` needs Docker; the default does not.)
-
-### 2. Concepts in 60 seconds
+### Concepts in 60 seconds
 
 - **S3** is where all data lives (inputs, aligned BAMs, results). A **bucket** is a
   top-level container; an **object** is a file identified by its full **key/URI**
@@ -148,85 +116,13 @@ in the cloud by CodeBuild. (Only `BUILD_MODE=local` needs Docker; the default do
 - **CloudFormation** creates all of the above from the template files in this repo
   (infrastructure as code — reproducible, and deletable in one command).
 
-### 3. One-time account setup
+### Setup and your first run
 
-Create an S3 bucket (or reuse one), then run the bootstrap. This mirrors the required
-containers to your ECR, builds the align image, stages the reference genome, and
-deploys the three CloudFormation stacks. You need the ONT workflow definition ZIP
-(the cloud-adapted `wf-somatic-variation`; see `production/cloud-pipeline/`).
-
-```bash
-aws s3 mb s3://MY-BUCKET --region ap-southeast-1     # if you don't have a bucket yet
-
-export SUBNETS=subnet-aaa,subnet-bbb,subnet-ccc      # subnets in your VPC for Batch
-export SECURITY_GROUP=sg-xxxx                         # a security group in that VPC
-./production/cloud37/bootstrap.sh ap-southeast-1 MY-BUCKET <path-or-s3-uri-to-workflow.zip>
-```
-
-> Not sure what to use for `SUBNETS`/`SECURITY_GROUP`? Every AWS account has a **default
-> VPC** with default subnets and a default security group. Find them with:
-> `aws ec2 describe-subnets --query 'Subnets[].SubnetId'` and
-> `aws ec2 describe-security-groups --query 'SecurityGroups[?GroupName==\`default\`].GroupId'`.
-> The security group must allow outbound HTTPS (the default one does).
-
-### 4. Upload your inputs to S3
-
-Copy your tumor/normal BAMs and the reference into the bucket. **List each file
-explicitly** (see "Coming from on-prem?" below — there is no input folder):
-
-```bash
-aws s3 cp tumor1.ubam.bam s3://MY-BUCKET/inputs/ubam/tumor1.ubam.bam
-aws s3 cp tumor2.ubam.bam s3://MY-BUCKET/inputs/ubam/tumor2.ubam.bam
-aws s3 cp normal.ubam.bam s3://MY-BUCKET/inputs/ubam/normal.ubam.bam
-# reference FASTA + its .fai (bootstrap can stage GRCh38 for you; or upload your own)
-aws s3 cp GRCh38_no_alt_analysis_set.fna     s3://MY-BUCKET/inputs/references/
-aws s3 cp GRCh38_no_alt_analysis_set.fna.fai s3://MY-BUCKET/inputs/references/
-```
-
-### 5. Run your first pair
-
-Get the state machine ARN from the app stack, write the input JSON, and start it:
-
-```bash
-SM=$(aws cloudformation describe-stacks --stack-name cloud37 --region ap-southeast-1 \
-      --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" --output text)
-
-cat > pair.json <<'JSON'
-{
-  "sample_name": "COLO829",
-  "bam_tumor":  "s3://MY-BUCKET/inputs/ubam/tumor1.ubam.bam",
-  "bam_tumor2": "s3://MY-BUCKET/inputs/ubam/tumor2.ubam.bam",
-  "bam_normal": "s3://MY-BUCKET/inputs/ubam/normal.ubam.bam",
-  "ref":        "s3://MY-BUCKET/inputs/references/GRCh38_no_alt_analysis_set.fna",
-  "output_prefix": "s3://MY-BUCKET/outputs/COLO829-run1/",
-  "override_basecaller_cfg": "dna_r10.4.1_e8.2_400bps_sup@v4.2.0"
-}
-JSON
-
-aws stepfunctions start-execution --state-machine-arn "$SM" \
-  --name COLO829-run1 --input file://pair.json --region ap-southeast-1
-```
-
-### 6. Monitor progress
-
-```bash
-# Overall orchestration (align -> merge -> trigger): open the Step Functions console,
-# or:
-aws stepfunctions describe-execution --execution-arn <arn-from-start> \
-  --region ap-southeast-1 --query 'status'
-
-# Once the HealthOmics run is triggered, watch it (run id is in manifest.json):
-aws s3 cp s3://MY-BUCKET/outputs/COLO829-run1/manifest.json - --region ap-southeast-1
-aws omics get-run --id <run-id> --region ap-southeast-1 --query 'status'
-```
-
-Expect roughly ~5 h for align+merge, then ~8-9 h for the HealthOmics variant run.
-
-### 7. Get your results
-
-All outputs are under the `output_prefix` you chose. Results VCFs, methylation, SV, and
-QC are under `<output_prefix>/<run-id>/definition/output/<sample_name>/`. See
-"Where the intermediate and output files live" below.
+[SETUP.md](SETUP.md) walks through the whole thing with copy-paste commands: the
+compute-quota check new accounts need, bucket and network, building the workflow
+package, `bootstrap.sh`, uploading BAMs, starting a pair, watching it, and finding the
+results. Kiro can run it for you. Run it in AWS CloudShell (a browser terminal that is
+already signed in) or anywhere with bash and AWS CLI v2.
 
 ---
 
@@ -348,6 +244,9 @@ Everything for one pair lives under the single `output_prefix` you pass in:
 
 The merged tumor BAM is written by `merge_job.sh` (`samtools merge -c -p` of the two
 coordinate-sorted per-tumor BAMs, then reheader to a single `SM` tag, then index).
+Every aligned BAM keeps the read groups (`@RG`: flow cell, platform, basecaller model)
+and program history (`@PG`) of its source uBAM, so the merged tumor carries all tumor
+read groups, each with `SM` set to `sample_name`.
 
 ---
 
@@ -383,6 +282,10 @@ All figures are for the COLO829 pair (tumor ~96x merged / normal ~59x) in
 
 - **Batch container job role** must trust `ecs-tasks.amazonaws.com` (a dedicated
   `TaskRole`), not the EC2 instance role — otherwise "ECS was unable to assume the role".
+- **HealthOmics ECR repository policy** — each mirrored `docker-hub/ontresearch/*` repo
+  needs a resource policy granting `omics.amazonaws.com` pull access; the run role's IAM
+  permissions alone are not enough. `bootstrap.sh` attaches it to any repo that has no
+  policy (it never overwrites an existing one, and stops if that one lacks HealthOmics access).
 - **`omics:startRun`** via the Step Functions SDK integration requires a `RequestId`
   idempotency token — injected with `States.UUID()`.
 - **Large scratch volume** (1024 GB gp3) — 60x uBAMs are ~130 GB and the merged tumor
@@ -390,6 +293,12 @@ All figures are for the COLO829 pair (tumor ~96x merged / normal ~59x) in
 - **uBAM classification** in `align_job.sh` — `samtools view -H | grep -c '^@SQ'` returns
   exit 1 on a uBAM (no `@SQ` lines) and `head -1` triggers SIGPIPE; both must be guarded
   (`|| true` + `set +o pipefail`) or `set -e` aborts the job.
+- **Read-group header lost at alignment** — the `samtools fastq | minimap2` stream drops
+  the uBAM header, so aligned BAMs had no `@RG` lines (reads kept orphaned `RG:Z` tags)
+  and the merge's `SM` rename had nothing to act on. `align_job.sh` now merges the source
+  header back in, producing byte-for-byte the header ONT's `reheader_samstream` step
+  writes in the HealthOmics alignment. Variant calls were not affected, because the
+  workflow takes `sample_name` and `override_basecaller_cfg` as parameters.
 
 ---
 
@@ -470,14 +379,16 @@ usually granted quickly.
 
 Everything is parameterized — no account-specific values are baked into the templates.
 The one-command path (`bootstrap.sh`) mirrors the 8 `ontresearch/*` containers to your
-ECR, builds the align image (via **CodeBuild**, so no local Docker and any host
-architecture works), stages the reference, deploys the prereqs + app stacks, and wires
-`deploy.params.json`:
+ECR (with the repository policy HealthOmics needs to pull them), builds the align image
+(via **CodeBuild**, so no local Docker and any host architecture works), stages the
+reference, and deploys the prereqs + app stacks ([SETUP.md](SETUP.md) has the full
+sequence, including how to find the subnets and security group):
 
 ```bash
+python3 production/cloud-pipeline/build_workflow_zip.py   # -> cloud37-variant-workflow.zip
 export SUBNETS=subnet-aaa,subnet-bbb,subnet-ccc      # your VPC subnets for Batch
 export SECURITY_GROUP=sg-xxxx                         # your Batch security group
-./production/cloud37/bootstrap.sh <REGION> <BUCKET> <WORKFLOW_ZIP>
+bash production/cloud37/bootstrap.sh <REGION> <BUCKET> cloud37-variant-workflow.zip
 ```
 
 Three CloudFormation stacks are created:
@@ -488,7 +399,7 @@ Three CloudFormation stacks are created:
 | `cloud37-prereqs` | HealthOmics run IAM role, run group (72 h cap), variant-caller workflow + version with container registry map. |
 | `cloud37` | Step Functions + AWS Batch (on-demand) + manifest Lambda. |
 
-See `production/cloud37/README.md` for the step-by-step / manual path.
+See `production/cloud37/README.md` for what each file and setup step does.
 
 ### Operational notes / gotchas
 
@@ -560,3 +471,9 @@ Built and validated against ONT `epi2me-labs/wf-somatic-variation` v1.5.1 with t
 COLO829/COLO829BL public dataset (`s3://ont-open-data/colo829_2024.03/`). The HealthOmics
 workflow is a cloud-adapted fork (`cloud37-variant-rs3`) with an internal 2-tumor merge
 path and right-sizing derived from measured per-task performance reports.
+`production/cloud-pipeline/` holds only the 8 files that differ from ONT's v1.5.1
+release; `build_workflow_zip.py` rebuilds the full 80-file definition from the release
+and verifies it is identical to the version registered in HealthOmics.
+
+The ONT code is licensed under the Oxford Nanopore Technologies PLC. Public License v1.0
+(`production/cloud-pipeline/LICENSE`), which permits use for research purposes only.
