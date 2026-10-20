@@ -146,7 +146,12 @@ Resources:
                       echo "skip (already mirrored): ${repo}:${tag}"
                     else
                       echo "mirror: ontresearch/${name}:${tag}"
-                      docker pull "ontresearch/${name}:${tag}"
+                      # Docker Hub rate-limits anonymous pulls; retry before failing the build.
+                      for i in 1 2 3; do
+                        docker pull "ontresearch/${name}:${tag}" && break
+                        if [ "$i" = 3 ]; then echo "ERROR: docker pull failed 3 times (Docker Hub rate limit?); re-run bootstrap later."; exit 1; fi
+                        echo "pull failed, retrying in 60s"; sleep 60
+                      done
                       docker tag  "ontresearch/${name}:${tag}" "${ECR}/${repo}:${tag}"
                       docker push "${ECR}/${repo}:${tag}"
                     fi

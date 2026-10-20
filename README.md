@@ -16,6 +16,9 @@ This is the **B1c** architecture. The two stages are stitched together by a sing
 Step Functions state machine, so one execution takes raw uBAMs (or aligned BAMs) all
 the way to somatic VCFs, methylation, SV calls, and QC.
 
+**Setting this up in your own AWS account? Follow [SETUP.md](SETUP.md)**, a step-by-step
+guide that Kiro can run for you.
+
 ---
 
 ## Why this architecture (the core optimization)
@@ -88,9 +91,10 @@ scripts/                          # analysis / diagnostics one-offs used during 
 
 ## Getting started (new to AWS)
 
-If you have not used AWS before, work through this once. You need an AWS account with
-permission to create the resources (IAM roles, Batch, HealthOmics, S3, Step Functions,
-CloudFormation, CodeBuild).
+If you have not used AWS before, follow [SETUP.md](SETUP.md); it has the exact commands,
+including the compute-quota check new accounts need. This section explains the same
+setup in more depth. You need an AWS account with permission to create the resources
+(IAM roles, Batch, HealthOmics, S3, Step Functions, CloudFormation, CodeBuild).
 
 ### How this works (mental model)
 
