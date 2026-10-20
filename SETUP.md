@@ -13,8 +13,10 @@ normal coverage then takes about 14 hours and costs about $32 in compute.
 1. **Get the code.** Accept the GitHub invitation to `ont-somatic-cloud37-aws`. On the
    repository page choose **Code → Download ZIP**, unzip it, and open the folder in Kiro
    (**File → Open Folder**).
-2. **Check Kiro's AWS connection.** It should use your account with administrator
-   access. The pipeline runs in **Asia Pacific (Singapore), `ap-southeast-1`**.
+2. **Check Kiro's AWS connection.** Kiro runs the AWS command-line tool (AWS CLI v2) in
+   its terminal, signed in to your account with administrator access. If the first
+   check in step 3.1 fails, ask Kiro to help you sign in. The pipeline runs in
+   **Asia Pacific (Singapore), `ap-southeast-1`**.
 3. **Check your compute limit.** New AWS accounts often can't start the 32-CPU machines
    the alignment uses. In the AWS console open **Service Quotas → AWS services → Amazon
    Elastic Compute Cloud (Amazon EC2)**, search for **Running On-Demand Standard (A, C, D,
@@ -35,42 +37,54 @@ Paste this into Kiro's chat:
 > memory). When it finishes, show me the results of the "Done when" check.
 
 Kiro creates a storage bucket, builds the workflow package, and runs the setup script.
-That takes 30–45 minutes, mostly waiting on AWS. If a step fails, ask Kiro to explain
+That takes about 30 minutes, mostly waiting on AWS. If a step fails, ask Kiro to explain
 the error and re-run that step. The setup skips work that is already done.
 
 ## 3. Deployment steps
 
-These are the exact steps Kiro follows. Run them from the repository folder.
+These are the exact steps Kiro follows. Run them from the repository folder. Each block
+works on its own: step 3.2 saves your settings in `setup.env`, and later blocks read
+them from there, so a new terminal (or a new Kiro command) picks up where you left off.
 
 **3.1 Prerequisites**
 
 ```bash
 aws --version                       # AWS CLI v2
 aws sts get-caller-identity         # must show your account
-export AWS_REGION=ap-southeast-1 AWS_DEFAULT_REGION=ap-southeast-1
 aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A \
-  --query 'Quota.Value' --output text   # 128 or more; see section 1, item 3
+  --region ap-southeast-1 --query 'Quota.Value' --output text   # 128 or more; see section 1, item 3
 ```
 
-**3.2 Bucket and network**
+**3.2 Bucket and network** (saves your settings in `setup.env`)
 
 ```bash
+REGION=ap-southeast-1
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-export BUCKET=ont-somatic-${ACCOUNT}-${AWS_REGION}
-aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null || aws s3 mb "s3://$BUCKET"
+BUCKET=ont-somatic-${ACCOUNT}-${REGION}
+aws s3api head-bucket --bucket "$BUCKET" --region "$REGION" 2>/dev/null \
+  || aws s3 mb "s3://$BUCKET" --region "$REGION"
 
-VPC=$(aws ec2 describe-vpcs --filters Name=is-default,Values=true --query 'Vpcs[0].VpcId' --output text)
-export SUBNETS=$(aws ec2 describe-subnets --filters Name=vpc-id,Values="$VPC" \
+VPC=$(aws ec2 describe-vpcs --region "$REGION" --filters Name=is-default,Values=true \
+  --query 'Vpcs[0].VpcId' --output text)
+SUBNETS=$(aws ec2 describe-subnets --region "$REGION" --filters Name=vpc-id,Values="$VPC" \
   --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
-export SECURITY_GROUP=$(aws ec2 describe-security-groups \
+SECURITY_GROUP=$(aws ec2 describe-security-groups --region "$REGION" \
   --filters Name=vpc-id,Values="$VPC" Name=group-name,Values=default \
   --query 'SecurityGroups[0].GroupId' --output text)
-echo "$VPC $SUBNETS $SECURITY_GROUP"
+
+cat > setup.env <<EOF
+export AWS_REGION=$REGION AWS_DEFAULT_REGION=$REGION
+export BUCKET=$BUCKET
+export SUBNETS=$SUBNETS
+export SECURITY_GROUP=$SECURITY_GROUP
+EOF
+cat setup.env
 ```
 
-If `VPC` prints `None`, the account has no default network. Ask your IT team for subnets
-with internet access and a security group that allows outbound HTTPS, and set `SUBNETS`
-(comma-separated) and `SECURITY_GROUP` to those.
+`SUBNETS` should list `subnet-…` IDs and `SECURITY_GROUP` an `sg-…` ID. If they are empty
+or `None`, the account has no default network: ask your IT team for subnets with
+internet access and a security group that allows outbound HTTPS, and put them in
+`setup.env` (subnets comma-separated).
 
 **3.3 Build the workflow package**
 
@@ -81,24 +95,37 @@ python3 production/cloud-pipeline/build_workflow_zip.py
 This downloads ONT's workflow from GitHub and adds the cloud changes. The output must
 end with `content matches the validated HealthOmics workflow (cloud37-variant-rs3)`.
 
-**3.4 Run the setup** (30–45 minutes)
+**3.4 Run the setup** (about 30 minutes)
+
+Start it in the background, so it keeps going even if the terminal or the Kiro command
+stops waiting:
 
 ```bash
-bash production/cloud37/bootstrap.sh "$AWS_REGION" "$BUCKET" cloud37-variant-workflow.zip
+(nohup bash production/cloud37/bootstrap.sh > /dev/null 2>&1 &)
 ```
 
-It copies the ONT containers into your container registry (ECR), builds the alignment
-container with CodeBuild, puts the GRCh38 reference genome in your bucket, and creates
-three CloudFormation stacks.
+Then check progress every few minutes:
 
-- It's safe to re-run if it stops partway. Export `BUCKET`, `SUBNETS` and
-  `SECURITY_GROUP` again first.
+```bash
+tail -n 5 bootstrap.log
+```
+
+It's finished when the log ends with `== cloud37 bootstrap complete ==`. A line starting
+with `ERROR` means it stopped; the message says what to do.
+
+The setup copies the ONT containers into your container registry (ECR), builds the
+alignment container, and puts the GRCh38 reference genome in your bucket. Those three
+run inside AWS (CodeBuild), so a slow or dropped connection on your side doesn't matter.
+Then it creates three CloudFormation stacks.
+
+- It's safe to re-run if it stops partway; it skips finished work.
 - If CodeBuild fails with `toomanyrequests`, Docker Hub's download limit was hit. Wait an
   hour and re-run.
 
 **3.5 Done when**
 
 ```bash
+source setup.env
 for s in cloud37-build cloud37-prereqs cloud37; do
   aws cloudformation describe-stacks --stack-name "$s" --query 'Stacks[0].StackStatus' --output text
 done                                                    # all three end in _COMPLETE
@@ -114,8 +141,8 @@ version holds the validated rs3 definition; step 3.3 checks this.
 top bar. Choose **Actions → Upload file** and upload the ZIP from section 1. Then run
 `unzip ont-somatic-cloud37-aws-main.zip && cd ont-somatic-cloud37-aws-main` and the
 commands in 3.1–3.5. CloudShell closes after about 20–30 minutes without keyboard input,
-so press Enter in it now and then during 3.4. If it closes, reopen it, `cd` into the
-folder, and continue from 3.2.
+so press Enter in it now and then during 3.4. If it closes, reopen it, run
+`cd ont-somatic-cloud37-aws-main`, and run 3.4 again. Your files and `setup.env` are kept.
 
 ## 4. Run a tumor–normal pair
 
@@ -124,17 +151,21 @@ inputs under `inputs/` and results under `outputs/` in your bucket, because the
 HealthOmics role can only read and write there.
 
 ```bash
+source setup.env
 aws s3 cp tumor_flowcell1.bam s3://$BUCKET/inputs/SAMPLE1/tumor1.bam
 aws s3 cp tumor_flowcell2.bam s3://$BUCKET/inputs/SAMPLE1/tumor2.bam   # only if there is a second tumor file
 aws s3 cp normal.bam          s3://$BUCKET/inputs/SAMPLE1/normal.bam
 ```
 
 Run the upload on the computer or server where the BAMs are stored. Uploading 100+ GB
-takes hours on a typical office connection.
+takes hours on a typical office connection. That computer needs the AWS CLI signed in to
+your account and the `setup.env` file from step 3.2 (or replace `$BUCKET` with your
+bucket name).
 
 **4.2 Start the run**
 
 ```bash
+source setup.env
 SM=$(aws cloudformation describe-stacks --stack-name cloud37 \
   --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" --output text)
 cat > pair.json <<JSON
@@ -183,7 +214,8 @@ can be re-run without re-aligning.
 |---|---|---|
 | Batch jobs stay `RUNNABLE` for more than 15 minutes | Compute limit too low | Section 1, item 3 |
 | CodeBuild fails with `toomanyrequests` | Docker Hub download limit | Wait an hour, re-run 3.4 |
-| Setup stopped partway | Session closed or a temporary error | Re-run 3.4 |
+| Setup stopped partway | Session closed or a temporary error | Read the end of `bootstrap.log`, then re-run 3.4 |
+| `ERROR: SUBNETS is not set` (or region, bucket) | Step 3.2 not run in this folder | Run 3.2, then 3.4 |
 | HealthOmics run `FAILED` | Shown by `aws omics get-run --id <run-id> --query failureReason` | Ask Kiro to read the run's logs |
 | Log says a sample is "below the minimum coverage" | Tumor or normal under 20x | Needs 20x or more per sample |
 

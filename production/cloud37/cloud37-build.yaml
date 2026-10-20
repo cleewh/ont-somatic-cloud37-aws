@@ -2,8 +2,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   cloud37 image build (CodeBuild) - arch-independent, no local Docker required.
   A single CodeBuild project (privileged, amd64) mirrors the 8 ontresearch/* containers
-  to ECR, attaches the repository policy HealthOmics needs to pull them, and builds +
-  pushes the cloud37-align container. Source is the build-context
+  to ECR, attaches the repository policy HealthOmics needs to pull them, builds +
+  pushes the cloud37-align container, and stages the GRCh38 reference in the bucket
+  (unless STAGE_REFERENCE=no). Source is the build-context
   ZIP (Dockerfile + align_job.sh + merge_job.sh) in S3. TRANSFERABLE: no account values baked in.
 
 Parameters:
@@ -80,6 +81,10 @@ Resources:
                 Effect: Allow
                 Action: [s3:GetObject]
                 Resource: !Sub arn:${AWS::Partition}:s3:::${Bucket}/${BuildContextKey}
+              - Sid: S3StageReference
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:AbortMultipartUpload, s3:DeleteObject]
+                Resource: !Sub arn:${AWS::Partition}:s3:::${Bucket}/inputs/references/*
 
   BuildProject:
     Type: AWS::CodeBuild::Project
@@ -98,6 +103,8 @@ Resources:
           - { Name: ECR_PREFIX,  Value: !Ref EcrRepositoryPrefix }
           - { Name: ALIGN_REPO,  Value: !Ref AlignRepoName }
           - { Name: ECR,         Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com' }
+          - { Name: BUCKET,      Value: !Ref Bucket }
+          - { Name: STAGE_REFERENCE, Value: 'yes' }   # bootstrap.sh overrides to 'no' for a custom reference
       Source:
         Type: S3
         Location: !Sub '${Bucket}/${BuildContextKey}'
@@ -110,6 +117,30 @@ Resources:
                 - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR"
             build:
               commands:
+                - |
+                  set -euo pipefail
+                  # Stage the GRCh38 no-alt analysis set (GCA_000001405.15, the validated reference)
+                  # from GIAB's public bucket. Runs here so the 3.1 GB upload uses AWS's network.
+                  REF_KEY=inputs/references/GRCh38_no_alt_analysis_set.fna; REF_BYTES=3144230986
+                  GIAB=s3://giab/release/references/GRCh38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz
+                  size() { aws s3api head-object --bucket "$BUCKET" --key "$1" --query ContentLength --output text 2>/dev/null || echo 0; }
+                  if [ "$STAGE_REFERENCE" != yes ]; then
+                    echo "reference: skipped (custom reference)"
+                  elif [ "$(size "$REF_KEY")" = "$REF_BYTES" ]; then
+                    echo "reference: present"
+                  else
+                    echo "reference: staging from GIAB"
+                    aws s3 cp --no-sign-request --region us-east-1 --only-show-errors "$GIAB" - | gzip -dc \
+                      | aws s3 cp - "s3://${BUCKET}/${REF_KEY}" --expected-size "$REF_BYTES" --only-show-errors
+                    if [ "$(size "$REF_KEY")" != "$REF_BYTES" ]; then
+                      aws s3 rm "s3://${BUCKET}/${REF_KEY}" >/dev/null 2>&1 || true
+                      echo "ERROR: staged reference has the wrong size; re-run bootstrap."; exit 1
+                    fi
+                  fi
+                  if [ "$STAGE_REFERENCE" = yes ] && [ "$(size "${REF_KEY}.fai")" = 0 ]; then
+                    aws s3 cp --no-sign-request --region us-east-1 --only-show-errors "${GIAB}.fai" ref.fai
+                    aws s3 cp --only-show-errors ref.fai "s3://${BUCKET}/${REF_KEY}.fai" && rm -f ref.fai
+                  fi
                 - |
                   set -euo pipefail
                   # HealthOmics only pulls from a private repo whose resource policy grants the

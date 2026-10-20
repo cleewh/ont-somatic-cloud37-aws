@@ -29,6 +29,10 @@ export SECURITY_GROUP=sg-xxxx                         # security group allowing 
 ./bootstrap.sh <REGION> <BUCKET> cloud37-variant-workflow.zip [REFERENCE_S3_PREFIX]
 ```
 
+With no arguments, `bootstrap.sh` reads `REGION`, `BUCKET`, `SUBNETS` and
+`SECURITY_GROUP` from `setup.env` in the current folder (written by SETUP.md step 3.2).
+It appends its output to `bootstrap.log` there too.
+
 1. Warns if the EC2 On-Demand vCPU quota is below 96. A pair aligns 3 inputs at once, at
    32 vCPU each.
 2. CodeBuild mirrors the 8 pinned `ontresearch/*` images to `docker-hub/ontresearch/*` in
@@ -36,8 +40,8 @@ export SECURITY_GROUP=sg-xxxx                         # security group allowing 
    Docker is needed. `BUILD_MODE=local` builds on your machine instead; that needs Docker
    with amd64 support, and you should run `docker logout <ACCT>.dkr.ecr.<REGION>.amazonaws.com`
    afterwards.
-3. Stages the GRCh38 no-alt analysis set at `inputs/references/`, from GIAB's public copy
-   or from your own prefix.
+3. Stages the GRCh38 no-alt analysis set at `inputs/references/`. By default the same
+   CodeBuild run copies GIAB's public copy; with `REFERENCE_S3_PREFIX` it copies your own.
 4. Uploads the workflow ZIP and deploys `cloud37-prereqs`.
 5. Deploys `cloud37` with the prereqs outputs.
 
