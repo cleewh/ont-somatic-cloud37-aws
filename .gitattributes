@@ -1,0 +1,4 @@
+# Keep Unix (LF) line endings on every computer, including Windows: bash can't run scripts
+# with Windows line endings, and the workflow package is checked byte for byte.
+* text=auto eol=lf
+*.zip binary

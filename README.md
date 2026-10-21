@@ -50,7 +50,9 @@ bin/                               # one-command scripts, Singapore (ap-southeas
   deploy.sh, status.sh             #   set up the pipeline; check setup progress
   upload.sh, start-run.sh          #   upload a pair's BAMs; start a run
   run-status.sh, get-results.sh    #   check a run; download its results
+  _common.sh, _*_worker.sh         #   shared code and background parts of the scripts above
 .kiro/steering/cloud37-pipeline.md # rules Kiro follows when it operates the pipeline
+.gitattributes                     # keeps Unix line endings, so the scripts also run on Windows
 production/cloud37/                # the B1c pipeline (this README's subject)
   bootstrap.sh                     # account setup that bin/deploy.sh starts (mirror containers, build, deploy)
   cloud37-build.yaml               # CodeBuild project: mirror ONT containers, build the align image
@@ -139,9 +141,10 @@ folder, one at a time:
 | Download the results (in the background) | `bash bin/get-results.sh RUN_NAME`, then `bash bin/get-results.sh RUN_NAME --wait` until `DONE` |
 
 Every script is safe to run again, and none of them uses a region other than
-`ap-southeast-1`. Without Kiro, run the same commands in a terminal with bash, AWS CLI v2
-and Python 3 (the scripts are tested on macOS), or in AWS CloudShell, a browser terminal
-that's already signed in (SETUP.md section 3).
+`ap-southeast-1`. They're tested on Windows (in Git Bash, which SETUP.md has you install)
+and macOS; the pipeline they create in AWS is the same either way. Without Kiro, run the
+same commands in a terminal with bash, AWS CLI v2 and Python 3, or in AWS CloudShell, a
+browser terminal that's already signed in (SETUP.md section 3).
 
 ---
 

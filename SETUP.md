@@ -10,8 +10,8 @@ Kiro runs the commands for you; you do a few one-time steps first.
 - Everything is created in your account; nothing depends on anyone else's.
 - Setup takes about 30 minutes and costs a few dollars. A pair at ~96x tumor / ~60x normal
   coverage then takes about 14 hours and costs about $32 in compute.
-- The commands are tested on macOS. On Windows, use AWS CloudShell instead of Kiro (see
-  "Without Kiro" in section 3).
+- It works from Windows 10/11 and macOS. On Windows, Kiro runs the commands in Git Bash,
+  which you install in section 1.
 
 ## 1. Before you start (about 20 minutes, once)
 
@@ -19,20 +19,36 @@ Kiro runs the commands for you; you do a few one-time steps first.
    1. Open the GitHub invitation email for `ont-somatic-cloud37-aws` and choose
       **Accept invitation**. Sign in to GitHub, or create a free account, if asked.
    2. On the repository page, choose the green **Code** button, then **Download ZIP**.
-   3. Unzip it and move the folder `ont-somatic-cloud37-aws-main` into your **Documents**
-      folder. Keep it there: setup saves your settings in it, and you use it for every run.
-2. **Install the AWS command-line tool (AWS CLI).** Download
-   <https://awscli.amazonaws.com/AWSCLIV2.pkg>, open it and follow the installer. If you
-   already have the AWS CLI, run the installer anyway to get version 2.32 or later. The
-   scripts also need Python 3. If setup later says Python is missing, open the Mac
-   **Terminal** app, run `xcode-select --install` and follow the prompts.
-3. **Open the folder in Kiro.** In Kiro, choose **File → Open Folder**, select
-   `ont-somatic-cloud37-aws-main` in Documents and choose **Open**. If Kiro asks whether you
-   trust this folder, choose to trust it. Otherwise Kiro asks about every command and doesn't
-   load this project's instructions for Kiro.
+   3. Put the folder where you'll keep it. Setup saves your settings in it, and you use it
+      for every run.
+      - **Windows:** in your Downloads folder, double-click `ont-somatic-cloud37-aws-main.zip`.
+        Drag the `ont-somatic-cloud37-aws-main` folder inside it to your user folder,
+        `C:\Users\<your name>`. Don't use Desktop or Documents if OneDrive syncs them.
+      - **Mac:** double-click the ZIP and move the `ont-somatic-cloud37-aws-main` folder
+        into your **Documents** folder.
+2. **Install the tools.** Close Kiro first, or quit and reopen it afterwards, so it sees them.
+   - **Git for Windows** (Windows only). It gives Kiro the bash terminal the scripts need.
+     Download it from <https://git-scm.com/download/win>, run it and accept every default.
+   - **AWS command-line tool (AWS CLI)**, version 2.32 or later. Windows:
+     <https://awscli.amazonaws.com/AWSCLIV2.msi>. Mac:
+     <https://awscli.amazonaws.com/AWSCLIV2.pkg>. Open it and follow the installer. If you
+     already have the AWS CLI, run the installer anyway to update it.
+   - **Python 3.** Windows: download the latest Python 3 installer from
+     <https://www.python.org/downloads/windows/>. On its first screen, tick **Add python.exe
+     to PATH**, then choose **Install Now**. Mac: if setup later says Python is missing, open
+     the **Terminal** app, run `xcode-select --install` and follow the prompts.
+3. **Open the folder in Kiro.** In Kiro, choose **File → Open Folder**, select the
+   `ont-somatic-cloud37-aws-main` folder and choose **Open** (on Windows, **Select Folder**).
+   If Kiro asks whether you trust this folder, choose to trust it. Otherwise Kiro asks about
+   every command and doesn't load this project's instructions for Kiro.
+
+   **Windows only: make Kiro use Git Bash.** Press **Ctrl+Shift+P**, type
+   `Terminal: Select Default Profile`, press Enter and choose **Git Bash**. Kiro then runs
+   its commands in Git Bash.
 4. **Sign in to AWS.** Signing in to Kiro doesn't give it access to your AWS account; the
-   AWS CLI signs in separately. In Kiro, choose **Terminal → New Terminal**, type this and
-   press Enter:
+   AWS CLI signs in separately. In Kiro, choose **Terminal → New Terminal** (or press
+   **Ctrl+`**). On Windows, check that the new terminal says `MINGW64` and its prompt ends
+   in `$`; if not, repeat the Git Bash step above. Type this and press Enter:
 
    ```bash
    aws login
@@ -61,8 +77,8 @@ Kiro runs the commands for you; you do a few one-time steps first.
 
 ## 2. Ask Kiro to set it up
 
-1. Open Kiro's chat panel. It's on the right; if it's closed, press **Cmd+L**. Type into
-   the chat box; don't choose Spec or Plan.
+1. Open Kiro's chat panel. It's on the right; if it's closed, press **Ctrl+L** (Mac:
+   **Cmd+L**). Type into the chat box; don't choose Spec or Plan.
 2. Paste this prompt and send it:
 
    > Set up the pipeline in this folder in my AWS account by following SETUP.md section 3.
@@ -126,15 +142,18 @@ sample needs at least 20x coverage.
 Ask Kiro, with your own sample name and file paths:
 
 > Upload the BAM files for sample SAMPLE1 as described in SETUP.md section 4.1. Tumor
-> files: /path/to/tumor_flowcell1.bam and /path/to/tumor_flowcell2.bam. Normal file:
-> /path/to/normal.bam.
+> files: D:/data/tumor_flowcell1.bam and D:/data/tumor_flowcell2.bam. Normal file:
+> D:/data/normal.bam.
 
 Kiro runs:
 
 ```bash
-bash bin/upload.sh --sample SAMPLE1 --tumor /path/to/tumor_flowcell1.bam --tumor2 /path/to/tumor_flowcell2.bam --normal /path/to/normal.bam
+bash bin/upload.sh --sample SAMPLE1 --tumor "D:/data/tumor_flowcell1.bam" --tumor2 "D:/data/tumor_flowcell2.bam" --normal "D:/data/normal.bam"
 ```
 
+- On Windows, write paths with forward slashes, as above. To get a file's path, right-click
+  it in File Explorer, choose **Copy as path** and change each `\` to `/`. On a Mac, paths
+  look like `/Users/you/data/normal.bam`.
 - Leave out `--tumor2` when there's only one tumor file.
 - The sample name may use letters, numbers, `-` and `_`.
 - The files go to `s3://<your bucket>/inputs/SAMPLE1/`. The upload runs in the
@@ -215,8 +234,9 @@ the aligned BAMs in `aligned_bams/`, so variant calling can be re-run without al
 
 | Message | What it means | What to do |
 |---|---|---|
+| `bash: command not found`, `The term 'bash' is not recognized`, or a message about Windows Subsystem for Linux | Windows: Kiro isn't using Git Bash | Install Git for Windows (section 1, step 2), then do the Git Bash step in section 1, step 3 |
 | `install the AWS CLI`, or `aws: command not found` | The AWS CLI isn't installed, or Kiro was open during the install | Section 1, step 2, then quit and reopen Kiro |
-| `install Python 3.8 or later` | Python is missing | In the Mac Terminal app, run `xcode-select --install` |
+| `install Python 3.8 or later`, or `Python was not found` | Python is missing | Section 1, step 2 (on Windows, tick **Add python.exe to PATH**), then quit and reopen Kiro. Mac: in the Terminal app, run `xcode-select --install` |
 | `isn't signed in`, `ExpiredToken`, `Unable to locate credentials` | Not signed in, or the 12-hour sign-in ran out | Run `aws login` in Kiro's terminal (section 1, step 4), then the same command again |
 | `NOTE: your EC2 limit in Singapore is 5 vCPUs` | The compute limit hasn't been raised yet | Section 1, step 5. Setup can carry on |
 | `alignment can't start`, or a note that jobs have waited more than 15 minutes for computers | The compute limit is too low | Section 1, step 5, then start the run again |
@@ -226,7 +246,7 @@ the aligned BAMs in `aligned_bams/`, so variant calling can be re-run without al
 | Setup `FAILED` for another reason | | Run `bash bin/deploy.sh` once more. If it fails the same way, ask Kiro: *"Why did the setup fail? Read bootstrap.log."* |
 | A run `FAILED` | | Ask Kiro: *"Why did run RUN-NAME fail?"* |
 | `COMPLETED WITHOUT RESULTS` | A sample is below 20x coverage | Each sample needs 20x or more |
-| Kiro says shell integration is unavailable, or a command stays on "Working…" | Kiro's terminal isn't set up | Press **Cmd+Shift+P**, run **Kiro: Enable Shell Integration** |
+| Kiro says shell integration is unavailable, or a command stays on "Working…" | Kiro's terminal isn't set up | Press **Ctrl+Shift+P** (Mac: **Cmd+Shift+P**), run **Kiro: Enable Shell Integration**, then quit and reopen Kiro |
 
 ## 6. Costs and clean-up
 
