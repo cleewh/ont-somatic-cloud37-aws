@@ -1,234 +1,254 @@
 # Set up the pipeline in your AWS account
 
-This guide installs the ONT somatic pipeline (`wf-somatic-variation` v1.5.1 on AWS Batch
-and AWS HealthOmics) in **your own** AWS account and runs your first tumor–normal pair.
-Kiro can run every command for you; the same steps also work by hand in AWS CloudShell.
+This guide sets up the ONT somatic pipeline (`wf-somatic-variation` v1.5.1 on AWS Batch
+and AWS HealthOmics) in **your own** AWS account, then runs your tumor–normal pairs.
+Kiro runs the commands for you; you do a few one-time steps first.
 
-Everything is created in your account and nothing depends on anyone else's. Setup takes
-about an hour, mostly waiting, and costs a few dollars. A pair at ~96x tumor / ~60x
-normal coverage then takes about 14 hours and costs about $32 in compute.
+- The pipeline runs only in **Asia Pacific (Singapore), `ap-southeast-1`**. Your data,
+  compute and results stay there. Setup downloads ONT's public software and the public
+  GRCh38 reference genome into that region.
+- Everything is created in your account; nothing depends on anyone else's.
+- Setup takes about 30 minutes and costs a few dollars. A pair at ~96x tumor / ~60x normal
+  coverage then takes about 14 hours and costs about $32 in compute.
+- The commands are tested on macOS. On Windows, use AWS CloudShell instead of Kiro (see
+  "Without Kiro" in section 3).
 
-## 1. Before you start (you, about 10 minutes)
+## 1. Before you start (about 20 minutes, once)
 
-1. **Get the code.** Accept the GitHub invitation to `ont-somatic-cloud37-aws`. On the
-   repository page choose **Code → Download ZIP**, unzip it, and open the folder in Kiro
-   (**File → Open Folder**).
-2. **Check Kiro's AWS connection.** Kiro runs the AWS command-line tool (AWS CLI v2) in
-   its terminal, signed in to your account with administrator access. If the first
-   check in step 3.1 fails, ask Kiro to help you sign in. The pipeline runs in
-   **Asia Pacific (Singapore), `ap-southeast-1`**.
-3. **Check your compute limit.** New AWS accounts often can't start the 32-CPU machines
-   the alignment uses. In the AWS console open **Service Quotas → AWS services → Amazon
-   Elastic Compute Cloud (Amazon EC2)**, search for **Running On-Demand Standard (A, C, D,
-   H, I, M, R, T, Z) instances**, and check the applied value for ap-southeast-1. If it is
-   below **128**, choose **Request increase at account level**, enter `128`, and submit.
-   Approval can take from minutes to a couple of days. You can set up in the meantime,
-   but runs only start once it's approved.
-4. **On Windows**, Kiro needs a bash terminal (WSL or Git Bash). Without one, use the
-   CloudShell route at the end of section 3.
+1. **Get the code.**
+   1. Open the GitHub invitation email for `ont-somatic-cloud37-aws` and choose
+      **Accept invitation**. Sign in to GitHub, or create a free account, if asked.
+   2. On the repository page, choose the green **Code** button, then **Download ZIP**.
+   3. Unzip it and move the folder `ont-somatic-cloud37-aws-main` into your **Documents**
+      folder. Keep it there: setup saves your settings in it, and you use it for every run.
+2. **Install the AWS command-line tool (AWS CLI).** Download
+   <https://awscli.amazonaws.com/AWSCLIV2.pkg>, open it and follow the installer. If you
+   already have the AWS CLI, run the installer anyway to get version 2.32 or later. The
+   scripts also need Python 3. If setup later says Python is missing, open the Mac
+   **Terminal** app, run `xcode-select --install` and follow the prompts.
+3. **Open the folder in Kiro.** In Kiro, choose **File → Open Folder**, select
+   `ont-somatic-cloud37-aws-main` in Documents and choose **Open**. If Kiro asks whether you
+   trust this folder, choose to trust it. Otherwise Kiro asks about every command and doesn't
+   load this project's instructions for Kiro.
+4. **Sign in to AWS.** Signing in to Kiro doesn't give it access to your AWS account; the
+   AWS CLI signs in separately. In Kiro, choose **Terminal → New Terminal**, type this and
+   press Enter:
 
-## 2. Ask Kiro to deploy it
+   ```bash
+   aws login
+   ```
 
-Paste this into Kiro's chat:
+   A browser window opens. Sign in to AWS the way you sign in to the AWS console. Your
+   user needs administrator access. Then check it worked:
 
-> Deploy this pipeline into my AWS account by following SETUP.md section 3, "Deployment
-> steps", in order. Use region ap-southeast-1. Check the prerequisites first and tell me
-> if anything needs my action. Don't change any pipeline settings (instance types, CPUs,
-> memory). When it finishes, show me the results of the "Done when" check.
+   ```bash
+   aws sts get-caller-identity
+   ```
 
-Kiro creates a storage bucket, builds the workflow package, and runs the setup script.
-That takes about 30 minutes, mostly waiting on AWS. If a step fails, ask Kiro to explain
-the error and re-run that step. The setup skips work that is already done.
+   It should show your 12-digit account number. The sign-in lasts up to 12 hours. After
+   that, commands say your credentials expired, and you run `aws login` again.
+5. **Raise your compute limit.** New AWS accounts can run only 5 virtual CPUs (vCPUs) at a
+   time in Singapore, and the pipeline needs 128.
+   1. While signed in to the AWS console, open
+      <https://ap-southeast-1.console.aws.amazon.com/servicequotas/home/services/ec2/quotas/L-1216C47A>.
+      It's **Service Quotas → Amazon Elastic Compute Cloud (Amazon EC2) → Running On-Demand
+      Standard (A, C, D, H, I, M, R, T, Z) instances**. Check that the region at the top
+      right is **Asia Pacific (Singapore)**.
+   2. If **Applied account-level quota value** is below 128, choose **Request increase at
+      account level**, enter `128` and choose **Request**.
+   3. AWS emails you when it's approved, usually within minutes to a few days. You can
+      do the setup in the meantime; runs only start once it's approved.
 
-## 3. Deployment steps
+## 2. Ask Kiro to set it up
 
-These are the exact steps Kiro follows. Run them from the repository folder. Each block
-works on its own: step 3.2 saves your settings in `setup.env`, and later blocks read
-them from there, so a new terminal (or a new Kiro command) picks up where you left off.
+1. Open Kiro's chat panel. It's on the right; if it's closed, press **Cmd+L**. Type into
+   the chat box; don't choose Spec or Plan.
+2. Paste this prompt and send it:
 
-**3.1 Prerequisites**
+   > Set up the pipeline in this folder in my AWS account by following SETUP.md section 3.
+   > Run `bash bin/deploy.sh`. If it prints ACTION NEEDED, stop and tell me exactly what I
+   > need to do. If it prints STARTED, keep running `bash bin/status.sh --wait` until it
+   > prints READY or FAILED, then show me what it printed. Don't edit any files, don't use
+   > any region other than ap-southeast-1, and don't change any pipeline settings.
 
-```bash
-aws --version                       # AWS CLI v2
-aws sts get-caller-identity         # must show your account
-aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A \
-  --region ap-southeast-1 --query 'Quota.Value' --output text   # 128 or more; see section 1, item 3
-```
+3. Kiro shows each command and asks before running it. Choose **Allow**. To stop being
+   asked for this project's commands, choose **Always allow**, change the pattern to
+   `bash bin/*` and apply it to **This workspace**.
 
-**3.2 Bucket and network** (saves your settings in `setup.env`)
+Setup takes about 30 minutes, and Kiro reports `READY` with your bucket name when it's
+done. Write the bucket name down; you'll use it to upload data. Setup keeps running if you
+close Kiro, as long as your computer stays on. If your computer sleeps or restarts, ask Kiro
+to run `bash bin/deploy.sh` again; it carries on where it stopped.
 
-```bash
-REGION=ap-southeast-1
-ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-BUCKET=ont-somatic-${ACCOUNT}-${REGION}
-aws s3api head-bucket --bucket "$BUCKET" --region "$REGION" 2>/dev/null \
-  || aws s3 mb "s3://$BUCKET" --region "$REGION"
+## 3. What the setup does
 
-VPC=$(aws ec2 describe-vpcs --region "$REGION" --filters Name=is-default,Values=true \
-  --query 'Vpcs[0].VpcId' --output text)
-SUBNETS=$(aws ec2 describe-subnets --region "$REGION" --filters Name=vpc-id,Values="$VPC" \
-  --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
-SECURITY_GROUP=$(aws ec2 describe-security-groups --region "$REGION" \
-  --filters Name=vpc-id,Values="$VPC" Name=group-name,Values=default \
-  --query 'SecurityGroups[0].GroupId' --output text)
+Kiro runs two commands from the folder:
 
-cat > setup.env <<EOF
-export AWS_REGION=$REGION AWS_DEFAULT_REGION=$REGION
-export BUCKET=$BUCKET
-export SUBNETS=$SUBNETS
-export SECURITY_GROUP=$SECURITY_GROUP
-EOF
-cat setup.env
-```
+| Command | What it does |
+|---|---|
+| `bash bin/deploy.sh` | Checks the AWS CLI, Python and your sign-in. Creates your S3 bucket, `ont-somatic-<account number>-ap-southeast-1`, and finds your account's default network. Builds the workflow package and checks it against the validated version. Then starts the rest of the setup in the background and returns within about a minute. |
+| `bash bin/status.sh --wait` | Prints `RUNNING`, `READY` or `FAILED`. While setup runs, it waits up to 90 seconds before answering. `READY` means it checked that every part is in place. |
 
-`SUBNETS` should list `subnet-…` IDs and `SECURITY_GROUP` an `sg-…` ID. If they are empty
-or `None`, the account has no default network: ask your IT team for subnets with
-internet access and a security group that allows outbound HTTPS, and put them in
-`setup.env` (subnets comma-separated).
+The background part copies ONT's containers into your container registry (ECR), builds the
+alignment container and puts the GRCh38 reference genome in your bucket. These three run
+inside AWS (CodeBuild), so your own internet connection doesn't slow them down. It then
+creates three CloudFormation stacks: `cloud37-build`, `cloud37-prereqs` and `cloud37`.
 
-**3.3 Build the workflow package**
+Setup leaves these files in the folder. Keep them:
 
-```bash
-python3 production/cloud-pipeline/build_workflow_zip.py
-```
+- `setup.env`: your bucket and network settings
+- `bootstrap.log`: the setup log
+- `cloud37-variant-workflow.zip`: the workflow package
 
-This downloads ONT's workflow from GitHub and adds the cloud changes. The output must
-end with `content matches the validated HealthOmics workflow (cloud37-variant-rs3)`.
+Both commands are safe to run again at any time.
 
-**3.4 Run the setup** (about 30 minutes)
+**Without Kiro (AWS CloudShell).** CloudShell is a terminal inside the AWS console that's
+already signed in, so you can skip step 4 of section 1.
 
-Start it in the background, so it keeps going even if the terminal or the Kiro command
-stops waiting:
+1. Sign in to the AWS console, set the region at the top right to **Asia Pacific
+   (Singapore)**, and choose the CloudShell icon (**>_**) in the top bar.
+2. Choose **Actions → Upload file** and upload the ZIP from section 1.
+3. Run `unzip -q ont-somatic-cloud37-aws-main.zip`, then `cd ont-somatic-cloud37-aws-main`.
+4. Run `bash bin/deploy.sh`, then `bash bin/status.sh --wait` until it prints READY.
 
-```bash
-(nohup bash production/cloud37/bootstrap.sh > /dev/null 2>&1 &)
-```
-
-Then check progress every few minutes:
-
-```bash
-tail -n 5 bootstrap.log
-```
-
-It's finished when the log ends with `== cloud37 bootstrap complete ==`. A line starting
-with `ERROR` means it stopped; the message says what to do.
-
-The setup copies the ONT containers into your container registry (ECR), builds the
-alignment container, and puts the GRCh38 reference genome in your bucket. Those three
-run inside AWS (CodeBuild), so a slow or dropped connection on your side doesn't matter.
-Then it creates three CloudFormation stacks.
-
-- It's safe to re-run if it stops partway; it skips finished work.
-- If CodeBuild fails with `toomanyrequests`, Docker Hub's download limit was hit. Wait an
-  hour and re-run.
-
-**3.5 Done when**
-
-```bash
-source setup.env
-for s in cloud37-build cloud37-prereqs cloud37; do
-  aws cloudformation describe-stacks --stack-name "$s" --query 'Stacks[0].StackStatus' --output text
-done                                                    # all three end in _COMPLETE
-aws cloudformation describe-stacks --stack-name cloud37 \
-  --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" --output text
-aws omics list-workflows --name cloud37-variant-caller --query 'items[0].status' --output text   # ACTIVE
-```
-
-In HealthOmics the workflow is `cloud37-variant-caller`, version `cloud37-variant`. That
-version holds the validated rs3 definition; step 3.3 checks this.
-
-**Without Kiro (AWS CloudShell):** in the AWS console, click the CloudShell icon in the
-top bar. Choose **Actions → Upload file** and upload the ZIP from section 1. Then run
-`unzip ont-somatic-cloud37-aws-main.zip && cd ont-somatic-cloud37-aws-main` and the
-commands in 3.1–3.5. CloudShell closes after about 20–30 minutes without keyboard input,
-so press Enter in it now and then during 3.4. If it closes, reopen it, run
-`cd ont-somatic-cloud37-aws-main`, and run 3.4 again. Your files and `setup.env` are kept.
+CloudShell closes after 20–30 minutes without typing, which stops the setup, so press Enter
+now and then. If it closes, open it again, run `cd ont-somatic-cloud37-aws-main` and then
+`bash bin/deploy.sh`. Don't download results into CloudShell; it has only 1 GB of space.
 
 ## 4. Run a tumor–normal pair
 
-**4.1 Upload the BAMs.** They can be unaligned or aligned, one file per flow cell. Keep
-inputs under `inputs/` and results under `outputs/` in your bucket, because the
-HealthOmics role can only read and write there.
+### 4.1 Upload the BAM files
+
+Each pair needs one or two tumor BAM files (two when the tumor was sequenced on two flow
+cells) and exactly one normal BAM file. They can be unaligned or aligned to GRCh38. Each
+sample needs at least 20x coverage.
+
+Ask Kiro, with your own sample name and file paths:
+
+> Upload the BAM files for sample SAMPLE1 as described in SETUP.md section 4.1. Tumor
+> files: /path/to/tumor_flowcell1.bam and /path/to/tumor_flowcell2.bam. Normal file:
+> /path/to/normal.bam.
+
+Kiro runs:
 
 ```bash
-source setup.env
-aws s3 cp tumor_flowcell1.bam s3://$BUCKET/inputs/SAMPLE1/tumor1.bam
-aws s3 cp tumor_flowcell2.bam s3://$BUCKET/inputs/SAMPLE1/tumor2.bam   # only if there is a second tumor file
-aws s3 cp normal.bam          s3://$BUCKET/inputs/SAMPLE1/normal.bam
+bash bin/upload.sh --sample SAMPLE1 --tumor /path/to/tumor_flowcell1.bam --tumor2 /path/to/tumor_flowcell2.bam --normal /path/to/normal.bam
 ```
 
-Run the upload on the computer or server where the BAMs are stored. Uploading 100+ GB
-takes hours on a typical office connection. That computer needs the AWS CLI signed in to
-your account and the `setup.env` file from step 3.2 (or replace `$BUCKET` with your
-bucket name).
+- Leave out `--tumor2` when there's only one tumor file.
+- The sample name may use letters, numbers, `-` and `_`.
+- The files go to `s3://<your bucket>/inputs/SAMPLE1/`. The upload runs in the
+  background; check it with `bash bin/upload.sh --sample SAMPLE1 --wait`. When it's done,
+  it prints the exact command to start the run.
+- A 130 GB file takes about an hour on a fast connection and much longer on a typical
+  office one. If the upload stops, for example because your 12-hour sign-in ran out, run
+  `aws login` and then the same upload command again. Files that already finished are
+  skipped.
 
-**4.2 Start the run**
+The files must be on this computer or on a drive it can open. To upload from another
+computer, such as the server where your data is, copy this whole folder there (it includes
+`setup.env`), install and sign in to the AWS CLI on it, and run the same command.
+
+### 4.2 Start the run
+
+Ask Kiro, with your sample name and your data's basecaller model:
+
+> Start the pipeline run for sample SAMPLE1 as described in SETUP.md section 4.2. The
+> basecaller model is dna_r10.4.1_e8.2_400bps_sup@v4.2.0.
+
+Kiro runs the command the upload printed, for example:
 
 ```bash
-source setup.env
-SM=$(aws cloudformation describe-stacks --stack-name cloud37 \
-  --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" --output text)
-cat > pair.json <<JSON
-{
-  "sample_name": "SAMPLE1",
-  "bam_tumor":  "s3://$BUCKET/inputs/SAMPLE1/tumor1.bam",
-  "bam_tumor2": "s3://$BUCKET/inputs/SAMPLE1/tumor2.bam",
-  "bam_normal": "s3://$BUCKET/inputs/SAMPLE1/normal.bam",
-  "ref":        "s3://$BUCKET/inputs/references/GRCh38_no_alt_analysis_set.fna",
-  "output_prefix": "s3://$BUCKET/outputs/SAMPLE1-run1/",
-  "override_basecaller_cfg": "dna_r10.4.1_e8.2_400bps_sup@v4.2.0"
-}
-JSON
-aws stepfunctions start-execution --state-machine-arn "$SM" --name SAMPLE1-run1 --input file://pair.json
+bash bin/start-run.sh --sample SAMPLE1 --tumor s3://YOUR-BUCKET/inputs/SAMPLE1/tumor1.bam --tumor2 s3://YOUR-BUCKET/inputs/SAMPLE1/tumor2.bam --normal s3://YOUR-BUCKET/inputs/SAMPLE1/normal.bam --model dna_r10.4.1_e8.2_400bps_sup@v4.2.0
 ```
 
-- Delete the `bam_tumor2` line if there is only one tumor file.
-- `output_prefix` must end with `/`, and each run needs its own execution name.
-- Set `override_basecaller_cfg` to your data's basecaller model. This workflow version
-  accepts models up to `dna_r10.4.1_e8.2_400bps_sup@v4.2.0`; the validation data was
-  basecalled with `@v4.3.0` and run as `@v4.2.0`.
-- Each sample needs at least 20x coverage. Below that, the workflow skips the pair.
+- `--model` is the basecaller model your data was made with. This workflow version accepts
+  models up to `dna_r10.4.1_e8.2_400bps_sup@v4.2.0`; if yours isn't supported, the script
+  lists the ones that are. Data made with a newer `sup` model, such as `@v4.3.0`, runs as
+  `@v4.2.0`; that's how the validation data was run.
+- Before it starts anything, the script checks that the files exist, the model is supported
+  and your compute limit is high enough.
+- It prints the run's name, for example `SAMPLE1-20261021-0930`. Note it down; you need it
+  to check the run and get the results.
 
-With Kiro, you can ask: *"Start the pipeline for sample SAMPLE1 with tumor files s3://…
-and s3://… and normal file s3://…, following SETUP.md section 4."*
+### 4.3 Check progress
 
-**4.3 Watch it.** In the Step Functions console, open state machine
-`cloud37-align-then-variant` and then your execution. It shows alignment and merge
-(about 5 hours at full coverage), then starts the HealthOmics run and finishes. Variant
-calling continues under **HealthOmics → Runs** (about 9 hours). The run ID is also in
-`s3://$BUCKET/outputs/SAMPLE1-run1/manifest.json`.
+Ask Kiro *"What's the status of run SAMPLE1-20261021-0930?"*. It runs:
 
-**4.4 Results** are in `s3://$BUCKET/outputs/SAMPLE1-run1/<run-id>/definition/output/`:
+```bash
+bash bin/run-status.sh SAMPLE1-20261021-0930
+```
 
-- somatic SNV and indel VCFs, plus germline VCFs
-- structural variants (Severus)
-- 5mC/5hmC methylation with DSS
-- HTML QC reports
+| It prints | Meaning |
+|---|---|
+| `ALIGNING` | Aligning the BAM files on AWS Batch: about 5 hours at full coverage |
+| `MERGING` | Combining the two tumor files: about 2 hours |
+| `VARIANT CALLING` | Running in HealthOmics: about 9 hours |
+| `COMPLETED` | Finished. Download the results (4.4) |
+| `COMPLETED WITHOUT RESULTS` | Finished but made no variant calls, usually because a sample is below 20x coverage |
+| `FAILED` | Stopped. It shows why; see section 5 |
 
-The aligned BAMs stay in `outputs/SAMPLE1-run1/aligned_bams/`, so the variant calling
-can be re-run without re-aligning.
+`bash bin/run-status.sh` with no run name lists your recent runs.
+
+### 4.4 Get the results
+
+Ask Kiro *"Download the results of run SAMPLE1-20261021-0930."*. It runs:
+
+```bash
+bash bin/get-results.sh SAMPLE1-20261021-0930
+```
+
+This downloads the results into `results/SAMPLE1-20261021-0930/` in the folder: about 10 GB
+for a full-coverage pair. The download runs in the background; run
+`bash bin/get-results.sh SAMPLE1-20261021-0930 --wait` to check on it, and it prints `DONE`
+when it's finished. You get:
+
+- somatic SNV and indel VCFs, plus tumor and normal germline VCFs, in `<sample>/snv/vcf/`
+- structural variants from Severus, in `<sample>/sv/`
+- 5mC and 5hmC methylation with DSS differential methylation, in `<sample>/mod/`
+- HTML reports, named `*report.html`
+
+The BAM and CRAM files stay in S3, in `s3://YOUR-BUCKET/outputs/<run name>/`. That includes
+the aligned BAMs in `aligned_bams/`, so variant calling can be re-run without aligning again.
 
 ## 5. If something goes wrong
 
-| Symptom | Cause | Fix |
+| Message | What it means | What to do |
 |---|---|---|
-| Batch jobs stay `RUNNABLE` for more than 15 minutes | Compute limit too low | Section 1, item 3 |
-| CodeBuild fails with `toomanyrequests` | Docker Hub download limit | Wait an hour, re-run 3.4 |
-| Setup stopped partway | Session closed or a temporary error | Read the end of `bootstrap.log`, then re-run 3.4 |
-| `ERROR: SUBNETS is not set` (or region, bucket) | Step 3.2 not run in this folder | Run 3.2, then 3.4 |
-| HealthOmics run `FAILED` | Shown by `aws omics get-run --id <run-id> --query failureReason` | Ask Kiro to read the run's logs |
-| Log says a sample is "below the minimum coverage" | Tumor or normal under 20x | Needs 20x or more per sample |
+| `install the AWS CLI`, or `aws: command not found` | The AWS CLI isn't installed, or Kiro was open during the install | Section 1, step 2, then quit and reopen Kiro |
+| `install Python 3.8 or later` | Python is missing | In the Mac Terminal app, run `xcode-select --install` |
+| `isn't signed in`, `ExpiredToken`, `Unable to locate credentials` | Not signed in, or the 12-hour sign-in ran out | Run `aws login` in Kiro's terminal (section 1, step 4), then the same command again |
+| `NOTE: your EC2 limit in Singapore is 5 vCPUs` | The compute limit hasn't been raised yet | Section 1, step 5. Setup can carry on |
+| `alignment can't start`, or a note that jobs have waited more than 15 minutes for computers | The compute limit is too low | Section 1, step 5, then start the run again |
+| `FAILED` with `toomanyrequests` | Docker Hub's download limit was hit | Wait an hour, then run `bash bin/deploy.sh` |
+| `FAILED` with `Cannot have more than 0 builds in queue` | New accounts can have a CodeBuild limit of 0 | In Service Quotas, open **AWS CodeBuild → Concurrently running builds for Linux/Medium environment** and request 1 or more, or ask AWS Support. Then run `bash bin/deploy.sh` |
+| `FAILED` with `_IN_PROGRESS state` | An earlier attempt is still finishing | Wait 5 minutes, then run `bash bin/deploy.sh` |
+| Setup `FAILED` for another reason | | Run `bash bin/deploy.sh` once more. If it fails the same way, ask Kiro: *"Why did the setup fail? Read bootstrap.log."* |
+| A run `FAILED` | | Ask Kiro: *"Why did run RUN-NAME fail?"* |
+| `COMPLETED WITHOUT RESULTS` | A sample is below 20x coverage | Each sample needs 20x or more |
+| Kiro says shell integration is unavailable, or a command stays on "Working…" | Kiro's terminal isn't set up | Press **Cmd+Shift+P**, run **Kiro: Enable Shell Integration** |
 
 ## 6. Costs and clean-up
 
 - Compute runs only while a pair is processing and stops on its own afterwards.
-- Storage is the ongoing cost. A full-coverage pair leaves about 1.4 TB in S3, about $35
-  a month. Most of that is BAM/CRAM copies; keep the VCFs and reports, and delete the
-  rest when you no longer need it:
-  `aws s3 rm s3://$BUCKET/outputs/SAMPLE1-run1/aligned_bams/ --recursive`
-- Set a spending alert under **Billing → Budgets**.
-- To remove the pipeline, delete the stacks `cloud37`, `cloud37-prereqs` and
-  `cloud37-build` in CloudFormation. Your S3 data stays until you delete it.
+- Storage is the ongoing cost. A full-coverage pair leaves about 1.4 TB in S3, about $35 a
+  month, mostly BAM and CRAM files. Once you've downloaded the results, delete what you
+  don't need, for example a run's aligned BAMs:
+  `aws s3 rm s3://YOUR-BUCKET/outputs/RUN-NAME/aligned_bams/ --recursive`
+- Set a spending alert: in the AWS console, open **Billing and Cost Management → Budgets →
+  Create budget**.
+- To remove the pipeline, run these three commands. Your bucket and its data stay until you
+  delete them yourself.
+
+  ```bash
+  aws cloudformation delete-stack --region ap-southeast-1 --stack-name cloud37
+  aws cloudformation delete-stack --region ap-southeast-1 --stack-name cloud37-prereqs
+  aws cloudformation delete-stack --region ap-southeast-1 --stack-name cloud37-build
+  ```
+
+  The copied containers also stay in ECR: about 10 GB, roughly $1 a month. To remove them,
+  ask Kiro: *"Delete the ECR repositories cloud37-align and docker-hub/ontresearch/\* in
+  ap-southeast-1."*
 
 ## Licence
 

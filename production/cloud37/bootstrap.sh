@@ -13,19 +13,34 @@
 # needed for BUILD_MODE=local. Auth is your ambient AWS credentials.
 # Safe to re-run: finished steps are skipped and unchanged stacks are left alone.
 #
-# Usage (from the repository folder):
+# Normally started by `bash bin/deploy.sh` (see SETUP.md), which runs it in the background.
+# Direct use, from the repository folder:
 #   bash production/cloud37/bootstrap.sh [REGION] [BUCKET] [WORKFLOW_ZIP] [REFERENCE_SOURCE_S3_PREFIX]
 #
-# With no arguments it reads REGION, BUCKET, SUBNETS and SECURITY_GROUP from setup.env
-# (written by SETUP.md step 3.2) and uses cloud37-variant-workflow.zip (step 3.3).
-# Arguments override setup.env. Progress is also written to bootstrap.log.
+# With no arguments it reads REGION, BUCKET, SUBNETS and SECURITY_GROUP from setup.env and
+# uses cloud37-variant-workflow.zip; bin/deploy.sh writes both. Arguments override setup.env.
+# Progress goes to bootstrap.log (the previous run's log is kept as bootstrap.previous.log).
 #
 # REFERENCE_SOURCE_S3_PREFIX (optional): an s3:// prefix holding your own
 # GRCh38_no_alt_analysis_set.fna and .fna.fai. Default: the public GIAB copy of the
 # GRCh38 no-alt analysis set (GCA_000001405.15), the reference this pipeline was validated on.
 set -euo pipefail
 
-exec > >(tee -a bootstrap.log) 2>&1
+# One copy at a time; bin/deploy.sh and bin/status.sh read this lock file. A lock left by a
+# copy that was stopped (for example by a restart) is ignored, even if its process number
+# now belongs to another program.
+LOCK=bootstrap.lock
+lock_pid="$(cat "$LOCK" 2>/dev/null || true)"
+if [[ "$lock_pid" =~ ^[0-9]+$ ]] \
+   && [[ "$(ps -ww -o command= -p "$lock_pid" 2>/dev/null || true)" == *bootstrap.sh* ]]; then
+  echo "bootstrap.sh is already running (process ${lock_pid}). Check progress with: bash bin/status.sh" >&2
+  exit 1
+fi
+echo $$ > "$LOCK"
+trap 'rm -f "$LOCK"' EXIT
+
+if [[ -f bootstrap.log ]]; then mv -f bootstrap.log bootstrap.previous.log; fi
+exec > >(tee bootstrap.log) 2>&1
 echo "== $(date -u '+%Y-%m-%d %H:%M:%S') UTC =="
 
 if [[ -f setup.env ]]; then source ./setup.env; fi
@@ -36,10 +51,10 @@ REF_SRC="${4:-}"
 
 # Check every input first, so a missing value fails now rather than 30 minutes in.
 fail() { echo "ERROR: $*" >&2; exit 1; }
-[[ -n "$REGION" && -n "$BUCKET" ]] || fail "region and bucket are not set; run SETUP.md step 3.2 (creates setup.env) or pass them as arguments"
-[[ "${SUBNETS:-}" == subnet-* ]] || fail "SUBNETS is not set to subnet IDs (subnet-...); see SETUP.md step 3.2"
-[[ "${SECURITY_GROUP:-}" == sg-* ]] || fail "SECURITY_GROUP is not set to a security group ID (sg-...); see SETUP.md step 3.2"
-[[ "$WF_ZIP" == s3://* || -f "$WF_ZIP" ]] || fail "workflow ZIP '$WF_ZIP' not found; run SETUP.md step 3.3 first"
+[[ -n "$REGION" && -n "$BUCKET" ]] || fail "region and bucket are not set; run bash bin/deploy.sh (it writes setup.env), or pass them as arguments"
+[[ "${SUBNETS:-}" == subnet-* ]] || fail "SUBNETS is not set to subnet IDs (subnet-...); run bash bin/deploy.sh"
+[[ "${SECURITY_GROUP:-}" == sg-* ]] || fail "SECURITY_GROUP is not set to a security group ID (sg-...); run bash bin/deploy.sh"
+[[ "$WF_ZIP" == s3://* || -f "$WF_ZIP" ]] || fail "workflow ZIP '$WF_ZIP' not found; run bash bin/deploy.sh"
 ACCT="$(aws sts get-caller-identity --query Account --output text)"
 ECR="${ACCT}.dkr.ecr.${REGION}.amazonaws.com"
 PREFIX="docker-hub"
@@ -170,7 +185,17 @@ PY
     case "$st" in
       SUCCEEDED) echo "   CodeBuild SUCCEEDED"; break ;;
       IN_PROGRESS) sleep 20 ;;
-      *) echo "   CodeBuild ${st} - see console logs for project ${proj}"; exit 1 ;;
+      *)
+        echo "   ERROR: CodeBuild ${st}. The end of the build log:"
+        local lg_group lg_stream
+        read -r lg_group lg_stream <<<"$(aws codebuild batch-get-builds --ids "$bid" --region "$REGION" \
+          --query 'builds[0].logs.[groupName,streamName]' --output text 2>/dev/null || true)"
+        if [[ -n "${lg_stream:-}" && "$lg_stream" != None ]]; then
+          aws logs get-log-events --region "$REGION" --log-group-name "$lg_group" --log-stream-name "$lg_stream" \
+            --limit 15 --query 'events[].message' --output text 2>/dev/null | tr '\t' '\n' | sed 's/^/     /' || true
+        fi
+        echo "   Full log: AWS console > CodeBuild > Build projects > ${proj} > the latest build."
+        exit 1 ;;
     esac
   done
 }
@@ -309,7 +334,7 @@ aws cloudformation deploy \
 echo "== cloud37 bootstrap complete =="
 echo "   State machine: $(aws cloudformation describe-stacks --stack-name cloud37 --region "$REGION" \
   --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" --output text)"
-echo "   Next: check SETUP.md step 3.5, then start a pair (section 4)."
+echo "   Next: bash bin/status.sh, then start a pair (SETUP.md section 4)."
 if [[ "$BUILD_MODE" == local ]]; then
   echo "   Run 'docker logout ${ECR}' to remove the cached ECR login."
 fi
