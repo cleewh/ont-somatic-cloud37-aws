@@ -13,23 +13,33 @@
 # needed for BUILD_MODE=local. Auth is your ambient AWS credentials.
 # Safe to re-run: finished steps are skipped and unchanged stacks are left alone.
 #
-# Usage:
-#   ./bootstrap.sh <REGION> <BUCKET> <WORKFLOW_ZIP_LOCAL_OR_S3> [REFERENCE_SOURCE_S3_PREFIX]
+# Usage (from the repository folder):
+#   bash production/cloud37/bootstrap.sh [REGION] [BUCKET] [WORKFLOW_ZIP] [REFERENCE_SOURCE_S3_PREFIX]
 #
-# Example:
-#   python3 ../cloud-pipeline/build_workflow_zip.py
-#   ./bootstrap.sh ap-southeast-1 my-genomics-bucket cloud37-variant-workflow.zip
+# With no arguments it reads REGION, BUCKET, SUBNETS and SECURITY_GROUP from setup.env
+# (written by SETUP.md step 3.2) and uses cloud37-variant-workflow.zip (step 3.3).
+# Arguments override setup.env. Progress is also written to bootstrap.log.
 #
 # REFERENCE_SOURCE_S3_PREFIX (optional): an s3:// prefix holding your own
 # GRCh38_no_alt_analysis_set.fna and .fna.fai. Default: the public GIAB copy of the
 # GRCh38 no-alt analysis set (GCA_000001405.15), the reference this pipeline was validated on.
 set -euo pipefail
 
-REGION="${1:?REGION required}"
-BUCKET="${2:?BUCKET required}"
-WF_ZIP="${3:?workflow definition ZIP (local path or s3:// URI) required}"
+exec > >(tee -a bootstrap.log) 2>&1
+echo "== $(date -u '+%Y-%m-%d %H:%M:%S') UTC =="
+
+if [[ -f setup.env ]]; then source ./setup.env; fi
+REGION="${1:-${AWS_REGION:-}}"
+BUCKET="${2:-${BUCKET:-}}"
+WF_ZIP="${3:-cloud37-variant-workflow.zip}"
 REF_SRC="${4:-}"
 
+# Check every input first, so a missing value fails now rather than 30 minutes in.
+fail() { echo "ERROR: $*" >&2; exit 1; }
+[[ -n "$REGION" && -n "$BUCKET" ]] || fail "region and bucket are not set; run SETUP.md step 3.2 (creates setup.env) or pass them as arguments"
+[[ "${SUBNETS:-}" == subnet-* ]] || fail "SUBNETS is not set to subnet IDs (subnet-...); see SETUP.md step 3.2"
+[[ "${SECURITY_GROUP:-}" == sg-* ]] || fail "SECURITY_GROUP is not set to a security group ID (sg-...); see SETUP.md step 3.2"
+[[ "$WF_ZIP" == s3://* || -f "$WF_ZIP" ]] || fail "workflow ZIP '$WF_ZIP' not found; run SETUP.md step 3.3 first"
 ACCT="$(aws sts get-caller-identity --query Account --output text)"
 ECR="${ACCT}.dkr.ecr.${REGION}.amazonaws.com"
 PREFIX="docker-hub"
@@ -125,13 +135,38 @@ PY
 
   local proj; proj="$(aws cloudformation describe-stacks --stack-name cloud37-build --region "$REGION" \
     --query "Stacks[0].Outputs[?OutputKey=='BuildProjectName'].OutputValue" --output text)"
-  echo "   starting CodeBuild project ${proj} (mirrors 8 containers + builds align image)"
-  local bid; bid="$(aws codebuild start-build --project-name "$proj" --region "$REGION" \
-    --query 'build.id' --output text)"
-  echo "   build id: ${bid} - waiting for completion..."
+  # The build also stages the default reference (step 3) inside AWS, so the 3.1 GB upload
+  # doesn't depend on this machine's network. Skipped when you supply your own reference.
+  local stage_ref=yes
+  if [[ -n "$REF_SRC" ]]; then stage_ref=no; fi
+  local bid st misses=0
+  # If an earlier attempt left a build running, wait for that one instead of starting another.
+  bid="$(aws codebuild list-builds-for-project --project-name "$proj" --region "$REGION" \
+           --query 'ids[0]' --output text 2>/dev/null || true)"
+  if [[ "$bid" == "${proj}:"* ]] && [[ "$(aws codebuild batch-get-builds --ids "$bid" --region "$REGION" \
+         --query 'builds[0].buildStatus' --output text 2>/dev/null || true)" == IN_PROGRESS ]]; then
+    echo "   build ${bid} from an earlier attempt is still running; waiting for it"
+  else
+    echo "   starting CodeBuild project ${proj} (mirrors 8 containers, builds align image, stages reference: ${stage_ref})"
+    bid="$(aws codebuild start-build --project-name "$proj" --region "$REGION" \
+      --environment-variables-override "name=STAGE_REFERENCE,value=${stage_ref},type=PLAINTEXT" \
+      --query 'build.id' --output text)"
+  fi
+  echo "   build id: ${bid} - waiting for completion (about 20 minutes)..."
   while true; do
-    local st; st="$(aws codebuild batch-get-builds --ids "$bid" --region "$REGION" \
-      --query 'builds[0].buildStatus' --output text)"
+    # A dropped connection must not abort setup: the build keeps running in AWS, so keep
+    # polling through errors and give up only after ~10 minutes without an answer.
+    if ! st="$(aws codebuild batch-get-builds --ids "$bid" --region "$REGION" \
+                 --query 'builds[0].buildStatus' --output text 2>/dev/null)"; then
+      misses=$((misses + 1))
+      if (( misses >= 30 )); then
+        echo "   ERROR: no answer from AWS for 10 minutes while waiting for CodeBuild; check your" >&2
+        echo "          connection and re-run bootstrap (finished work is skipped)." >&2
+        exit 1
+      fi
+      sleep 20; continue
+    fi
+    misses=0
     case "$st" in
       SUCCEEDED) echo "   CodeBuild SUCCEEDED"; break ;;
       IN_PROGRESS) sleep 20 ;;
@@ -187,6 +222,7 @@ if [[ -n "$REF_SRC" ]]; then
     fi
   done
 else
+  # Normally already staged by the CodeBuild run above; this local path covers BUILD_MODE=local.
   GIAB_REF="s3://giab/release/references/GRCh38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz"
   if present "$REF_KEY"; then echo "   present: ${REF_KEY##*/}"; else
     echo "   download + decompress the public GIAB copy (0.9 GB in, 3.1 GB to S3; a few minutes)"
@@ -240,9 +276,6 @@ echo "   run group: ${RUN_GROUP_ID}"
 echo "   workflow : ${WORKFLOW_ID} / ${VERSION_NAME}"
 
 echo "-- [6/6] generate deploy.params.json and deploy app stack --"
-echo "   NOTE: fill in your VPC Subnets + SecurityGroup below (customer network)."
-: "${SUBNETS:?set SUBNETS env var (comma-separated subnet ids) before this step}"
-: "${SECURITY_GROUP:?set SECURITY_GROUP env var (sg id) before this step}"
 
 cat > "${SCRIPT_DIR}/deploy.params.json" <<JSON
 [
@@ -273,7 +306,10 @@ aws cloudformation deploy \
       "OmicsRunRoleArn=${RUN_ROLE_ARN}" \
       "OmicsRunGroupId=${RUN_GROUP_ID}"
 
-echo "== cloud37 bootstrap complete. Start a pair with: =="
-echo "   aws stepfunctions start-execution --state-machine-arn <cloud37 StateMachineArn> \\"
-echo "     --input file://pair-input.json --region ${REGION}"
-echo "   (docker logout ${ECR} to scrub the cached ECR token)"
+echo "== cloud37 bootstrap complete =="
+echo "   State machine: $(aws cloudformation describe-stacks --stack-name cloud37 --region "$REGION" \
+  --query "Stacks[0].Outputs[?OutputKey=='StateMachineArn'].OutputValue" --output text)"
+echo "   Next: check SETUP.md step 3.5, then start a pair (section 4)."
+if [[ "$BUILD_MODE" == local ]]; then
+  echo "   Run 'docker logout ${ECR}' to remove the cached ECR login."
+fi
