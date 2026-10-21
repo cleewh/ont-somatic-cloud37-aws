@@ -18,8 +18,7 @@ command -v aws >/dev/null 2>&1 \
   || need "install the AWS CLI (SETUP.md section 1, step 2), then restart Kiro."
 ver="$(aws --version 2>&1 | sed -n 's#^aws-cli/\([0-9][0-9.]*\).*#\1#p')"
 [[ "$ver" == 2.* ]] || need "the AWS CLI is version ${ver:-unknown}; version 2 is needed (SETUP.md section 1, step 2)."
-python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' >/dev/null 2>&1 \
-  || need "install Python 3.8 or later (SETUP.md section 1, step 2)."
+(( ${#PYTHON[@]} )) || need "install Python 3.8 or later (SETUP.md section 1, step 2), then restart Kiro."
 if ! ACCOUNT="$(aws sts get-caller-identity --query Account --output text 2>&1)"; then
   need "the AWS CLI isn't signed in to your AWS account. Run: aws login   (SETUP.md section 1, step 4)
   The AWS CLI said: $(sed '/^[[:space:]]*$/d' <<<"$ACCOUNT")"
@@ -103,16 +102,9 @@ grep -q 'content matches the validated HealthOmics workflow' <<<"$out" \
   || need "the workflow package doesn't match the validated version. Download the repository ZIP again, then run bash bin/deploy.sh."
 echo "  cloud37-variant-workflow.zip matches the validated workflow"
 
-# Start the rest in its own session, so it keeps running if Kiro or the terminal closes.
-nohup python3 -c '
-import os
-try:
-    os.setsid()
-except OSError:
-    pass
-os.execvp("bash", ["bash", "production/cloud37/bootstrap.sh"])
-' > /dev/null 2>&1 < /dev/null &
-for _ in 1 2 3 4 5 6 7 8 9 10; do
+# Start the rest in the background, so it keeps running if Kiro or the terminal closes.
+start_detached "" production/cloud37/bootstrap.sh
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
   alive bootstrap.lock && break
   sleep 1
 done

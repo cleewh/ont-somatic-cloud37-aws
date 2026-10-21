@@ -26,13 +26,39 @@
 # GRCh38 no-alt analysis set (GCA_000001405.15), the reference this pipeline was validated on.
 set -euo pipefail
 
+# On Windows this runs in Git Bash with the Windows AWS CLI, which ends its output lines with
+# \r\n. Drop the \r so values compare correctly (`aws s3 cp` can stream file contents, so
+# it's left alone), and pass CloudWatch log group names (/aws/...) through unchanged.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    aws() {
+      if [[ "${1:-}" == s3 && "${2:-}" == cp ]]; then command aws "$@"; return; fi
+      command aws "$@" | tr -d '\r'
+      return "${PIPESTATUS[0]}"
+    }
+    export MSYS2_ARG_CONV_EXCL="/aws/"
+    ;;
+esac
+# Python, under whichever name it's installed (on Windows: python or py -3).
+PYTHON=python3
+for p in python3 python "py -3"; do
+  if $p -c 'import sys; sys.exit(sys.version_info < (3, 8))' >/dev/null 2>&1; then PYTHON="$p"; break; fi
+done
+
 # One copy at a time; bin/deploy.sh and bin/status.sh read this lock file. A lock left by a
 # copy that was stopped (for example by a restart) is ignored, even if its process number
 # now belongs to another program.
 LOCK=bootstrap.lock
 lock_pid="$(cat "$LOCK" 2>/dev/null || true)"
-if [[ "$lock_pid" =~ ^[0-9]+$ ]] \
-   && [[ "$(ps -ww -o command= -p "$lock_pid" 2>/dev/null || true)" == *bootstrap.sh* ]]; then
+lock_cmd=""
+if [[ "$lock_pid" =~ ^[0-9]+$ ]]; then
+  if [[ -r "/proc/${lock_pid}/cmdline" ]]; then
+    lock_cmd="$(tr '\0' ' ' < "/proc/${lock_pid}/cmdline" 2>/dev/null || true)"
+  else
+    lock_cmd="$(ps -ww -o command= -p "$lock_pid" 2>/dev/null || true)"
+  fi
+fi
+if [[ "$lock_cmd" == *bootstrap.sh* ]]; then
   echo "bootstrap.sh is already running (process ${lock_pid}). Check progress with: bash bin/status.sh" >&2
   exit 1
 fi
@@ -129,7 +155,8 @@ build_codebuild() {
   if command -v zip >/dev/null 2>&1; then
     ( cd "$SCRIPT_DIR" && zip -j -q "$tmp_zip" Dockerfile align_job.sh merge_job.sh )
   else
-    python3 - "$tmp_zip" "$SCRIPT_DIR" <<'PY'
+    # shellcheck disable=SC2086
+    $PYTHON - "$tmp_zip" "$SCRIPT_DIR" <<'PY'
 import sys, zipfile, os
 z, d = sys.argv[1], sys.argv[2]
 with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as f:

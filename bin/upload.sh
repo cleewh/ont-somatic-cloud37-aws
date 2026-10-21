@@ -83,21 +83,15 @@ for (( i = 0; i < ${#files[@]}; i += 2 )); do
   [[ "${files[i]}" == *.bam ]] || need "${files[i]} isn't a .bam file."
 done
 
-nohup bash -c '
-bucket="$1" prefix="$2"; shift 2
-echo "started $(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
-while [[ $# -gt 0 ]]; do
-  src="$1" name="$2"; shift 2
-  size="$(python3 -c "import os, sys; print(os.path.getsize(sys.argv[1]))" "$src")"
-  have="$(aws s3api head-object --bucket "$bucket" --key "$prefix/$name" --query ContentLength --output text 2>/dev/null || true)"
-  if [[ "$have" == "$size" ]]; then echo "skipped $name (already uploaded)"; continue; fi
-  echo "uploading $name from $src ($(( size / 1000000000 )) GB)"
-  aws s3 cp --only-show-errors "$src" "s3://$bucket/$prefix/$name" || { echo "ERROR: uploading $src failed"; exit 1; }
-  echo "uploaded $name"
+rm -f "$PIDF"
+start_detached "$LOG" bin/_upload_worker.sh "$PIDF" "$BUCKET" "inputs/${SAMPLE}" "${files[@]}"
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  if alive "$PIDF" || grep -q '^== upload complete ==' "$LOG" 2>/dev/null; then break; fi
+  sleep 1
 done
-echo "== upload complete =="
-' _ "$BUCKET" "inputs/${SAMPLE}" "${files[@]}" > "$LOG" 2>&1 < /dev/null &
-echo $! > "$PIDF"
-sleep 2
+if ! alive "$PIDF" && ! grep -q '^== upload complete ==' "$LOG" 2>/dev/null; then
+  report || true
+  exit 1
+fi
 echo "STARTED: uploading ${SAMPLE}'s files to ${DEST}/ in the background."
 echo "Check progress with: bash bin/upload.sh --sample ${SAMPLE} --wait"

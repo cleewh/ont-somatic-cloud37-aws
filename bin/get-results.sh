@@ -38,9 +38,16 @@ if [[ -f "$LOG" ]]; then
   tail -n 3 "$LOG" | sed 's/^/  /'
   echo "Continuing it."
 fi
-nohup bash -c 'aws s3 sync --only-show-errors "$1" "$2" \
-    --exclude "*.bam" --exclude "*.bam.bai" --exclude "*.cram" --exclude "*.crai" \
-  && echo "== download complete =="' _ "$SRC" "$DEST/" > "$LOG" 2>&1 < /dev/null &
-echo $! > "$PIDF"
+rm -f "$PIDF"
+start_detached "$LOG" bin/_download_worker.sh "$PIDF" "$SRC" "$DEST/"
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  if alive "$PIDF" || grep -q '^== download complete ==' "$LOG" 2>/dev/null; then break; fi
+  sleep 1
+done
+if ! alive "$PIDF" && ! grep -q '^== download complete ==' "$LOG" 2>/dev/null; then
+  echo "FAILED: the download didn't start:"
+  tail -n 4 "$LOG" 2>/dev/null | sed 's/^/  /'
+  exit 1
+fi
 echo "STARTED: downloading the results of ${NAME} to ${DEST}/ (about 10 GB at full coverage)."
 echo "Run this command again to check progress; it prints DONE when it's finished."
