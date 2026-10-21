@@ -26,10 +26,14 @@
 # GRCh38 no-alt analysis set (GCA_000001405.15), the reference this pipeline was validated on.
 set -euo pipefail
 
-# One copy at a time; bin/deploy.sh and bin/status.sh read this lock file.
+# One copy at a time; bin/deploy.sh and bin/status.sh read this lock file. A lock left by a
+# copy that was stopped (for example by a restart) is ignored, even if its process number
+# now belongs to another program.
 LOCK=bootstrap.lock
-if [[ -f "$LOCK" ]] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
-  echo "bootstrap.sh is already running (process $(cat "$LOCK")). Check progress with: bash bin/status.sh" >&2
+lock_pid="$(cat "$LOCK" 2>/dev/null || true)"
+if [[ "$lock_pid" =~ ^[0-9]+$ ]] \
+   && [[ "$(ps -ww -o command= -p "$lock_pid" 2>/dev/null || true)" == *bootstrap.sh* ]]; then
+  echo "bootstrap.sh is already running (process ${lock_pid}). Check progress with: bash bin/status.sh" >&2
   exit 1
 fi
 echo $$ > "$LOCK"

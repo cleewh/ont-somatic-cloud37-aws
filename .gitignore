@@ -30,7 +30,6 @@ scratch/
 
 # Written by the bin/ scripts and bootstrap.sh (each account's own settings, logs and data)
 production/cloud37/deploy.params.json
-pair.json
 setup.env
 bootstrap.log
 bootstrap.previous.log

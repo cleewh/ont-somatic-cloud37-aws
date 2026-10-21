@@ -5,13 +5,16 @@ aligned BAMs straight to S3. **Step Functions** then starts a **HealthOmics**
 variant-calling run on those BAMs. Nothing here is tied to one AWS account: every
 account-specific value is a stack parameter that `bootstrap.sh` fills in.
 
-Setting up a new account? Follow [SETUP.md](../../SETUP.md).
+Setting up a new account? Follow [SETUP.md](../../SETUP.md). The normal entry point is
+`bash bin/deploy.sh` from the repository folder: it writes `setup.env` and starts
+`bootstrap.sh` in the background, and `bash bin/status.sh --wait` reports when it's done.
+The `bin/` scripts run everything in Asia Pacific (Singapore), `ap-southeast-1`.
 
 ## Files
 
 | File | Role |
 |------|------|
-| `bootstrap.sh` | One-command setup of a new account; runs everything below. Safe to re-run. |
+| `bootstrap.sh` | Account setup, started by `bin/deploy.sh`; runs everything below. Safe to re-run. |
 | `cloud37-build.yaml` | CodeBuild project: mirrors the 8 ONT containers into ECR (with the HealthOmics pull policy) and builds the align image. |
 | `cloud37-prereqs.yaml` | HealthOmics run role, run group (72 h cap), variant-caller workflow and version. |
 | `cloud37-stack.yaml` | Step Functions, AWS Batch (on-demand), manifest Lambda. |
@@ -22,16 +25,21 @@ passed to the `cloud37` stack.
 
 ## What bootstrap.sh does
 
-```
-python3 ../cloud-pipeline/build_workflow_zip.py      # -> cloud37-variant-workflow.zip, verified == cloud37-variant-rs3
-export SUBNETS=subnet-aaa,subnet-bbb,subnet-ccc      # Batch subnets with internet access
-export SECURITY_GROUP=sg-xxxx                         # security group allowing outbound HTTPS
-./bootstrap.sh <REGION> <BUCKET> cloud37-variant-workflow.zip [REFERENCE_S3_PREFIX]
+`bin/deploy.sh` prepares its inputs first: it creates the bucket, finds the default VPC's
+subnets and security group, writes them to `setup.env`, and builds
+`cloud37-variant-workflow.zip` with `../cloud-pipeline/build_workflow_zip.py` (verified
+identical to `cloud37-variant-rs3`). Then it starts:
+
+```bash
+bash production/cloud37/bootstrap.sh   # from the repository folder
 ```
 
-With no arguments, `bootstrap.sh` reads `REGION`, `BUCKET`, `SUBNETS` and
-`SECURITY_GROUP` from `setup.env` in the current folder (written by SETUP.md step 3.2).
-It appends its output to `bootstrap.log` there too.
+With no arguments, `bootstrap.sh` reads `AWS_REGION`, `BUCKET`, `SUBNETS` and
+`SECURITY_GROUP` from `setup.env` in the current folder and uses
+`cloud37-variant-workflow.zip`. Optional arguments override them:
+`bootstrap.sh [REGION] [BUCKET] [WORKFLOW_ZIP] [REFERENCE_S3_PREFIX]`. It writes its output
+to `bootstrap.log` (keeping the previous run's log as `bootstrap.previous.log`) and holds
+`bootstrap.lock` while it runs, so only one copy runs at a time.
 
 1. Warns if the EC2 On-Demand vCPU quota is below 96. A pair aligns 3 inputs at once, at
    32 vCPU each.
@@ -49,7 +57,8 @@ Each step is commented in `bootstrap.sh` if you want to run it by hand.
 
 ## Running one tumor-normal pair (per-run input)
 
-Start a Step Functions execution with:
+`bash bin/start-run.sh` (SETUP.md section 4.2) checks the inputs and starts a Step
+Functions execution with this payload, keeping a copy in `runs/<run name>.json`:
 
 ```json
 {

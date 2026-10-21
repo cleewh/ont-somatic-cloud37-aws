@@ -22,7 +22,7 @@ python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' >/dev/null 2>&1 \
   || need "install Python 3.8 or later (SETUP.md section 1, step 2)."
 if ! ACCOUNT="$(aws sts get-caller-identity --query Account --output text 2>&1)"; then
   need "the AWS CLI isn't signed in to your AWS account. Run: aws login   (SETUP.md section 1, step 4)
-  The AWS CLI said: ${ACCOUNT}"
+  The AWS CLI said: $(sed '/^[[:space:]]*$/d' <<<"$ACCOUNT")"
 fi
 echo "  AWS CLI ${ver}, account ${ACCOUNT}, region ${REGION} (Asia Pacific, Singapore)"
 

@@ -45,9 +45,21 @@ vcpu_limit() {
   if [[ "$v" =~ ^[0-9] ]]; then echo "${v%%.*}"; fi
 }
 
-# Is the process recorded in pid file $1 still running?
+# Is the background task recorded in pid file $1 still running? The process must also
+# still be that task: after a restart, or in a copy of this folder on another computer,
+# the same process number can belong to an unrelated program.
 alive() {
-  [[ -f "$1" ]] && kill -0 "$(cat "$1" 2>/dev/null)" 2>/dev/null
+  local pid marker cmd
+  pid="$(cat "$1" 2>/dev/null || true)"
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  case "$1" in
+    bootstrap.lock)         marker="bootstrap.sh" ;;
+    uploads/*.pid)          marker="${1#uploads/}"; marker=" inputs/${marker%.pid} " ;;
+    results/*.download.pid) marker="${1#results/}"; marker=" results/${marker%.download.pid}/" ;;
+    *) return 1 ;;
+  esac
+  cmd="$(ps -ww -o command= -p "$pid" 2>/dev/null || true)"
+  [[ "$cmd" == *"$marker"* ]]
 }
 
 # For --wait: give the background task in pid file $1 up to 90 seconds to finish.

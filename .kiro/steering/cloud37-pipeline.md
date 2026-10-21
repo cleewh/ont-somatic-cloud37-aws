@@ -20,7 +20,8 @@ results:
 - Everything runs in Asia Pacific (Singapore), ap-southeast-1. Don't use, suggest or create
   resources in any other region.
 - Don't edit repository files or change pipeline settings (instance types, vCPUs, memory,
-  threads, disk sizes, workflow files).
+  threads, disk sizes, workflow files). The one exception: if the user asks to run more
+  pairs at once, use the commands in README.md "Scaling & concurrency".
 - When a script prints ACTION NEEDED or FAILED, show its message and the matching row of
   SETUP.md section 5. Don't work around it, and don't delete or change AWS resources unless
   the user asks.

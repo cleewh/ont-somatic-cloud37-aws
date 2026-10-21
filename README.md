@@ -17,7 +17,8 @@ Step Functions state machine, so one execution takes raw uBAMs (or aligned BAMs)
 the way to somatic VCFs, methylation, SV calls, and QC.
 
 **Setting this up in your own AWS account? Follow [SETUP.md](SETUP.md)**, a step-by-step
-guide that Kiro can run for you.
+guide that Kiro can run for you with the one-command scripts in `bin/`. The pipeline runs
+in **Asia Pacific (Singapore), `ap-southeast-1`**: the scripts use only that region.
 
 ---
 
@@ -44,9 +45,14 @@ methylation / SV calling.
 ## Repository layout
 
 ```
-SETUP.md                           # step-by-step setup + first run in a new AWS account
+SETUP.md                           # step-by-step setup and runs in a new AWS account (with Kiro)
+bin/                               # one-command scripts, Singapore (ap-southeast-1) only
+  deploy.sh, status.sh             #   set up the pipeline; check setup progress
+  upload.sh, start-run.sh          #   upload a pair's BAMs; start a run
+  run-status.sh, get-results.sh    #   check a run; download its results
+.kiro/steering/cloud37-pipeline.md # rules Kiro follows when it operates the pipeline
 production/cloud37/                # the B1c pipeline (this README's subject)
-  bootstrap.sh                     # one-command account setup (mirror containers, build, deploy)
+  bootstrap.sh                     # account setup that bin/deploy.sh starts (mirror containers, build, deploy)
   cloud37-build.yaml               # CodeBuild project: mirror ONT containers, build the align image
   cloud37-prereqs.yaml             # run role + run group + HealthOmics workflow/version (IaC)
   cloud37-stack.yaml               # app stack: Step Functions + Batch + manifest Lambda
@@ -96,11 +102,12 @@ CloudFormation, CodeBuild).
 ### How this works (mental model)
 
 You don't "upload the pipeline" to AWS as a bundle. The files in this repo are
-**blueprints**. You run one command (`bootstrap.sh`) from a terminal that's logged into
-AWS, and it **creates the pipeline's resources inside your account**: it copies the
-required containers into your ECR, builds the alignment image in the cloud (CodeBuild),
-loads the reference genome into your S3, and deploys the CloudFormation stacks (Batch
-compute, the Step Functions pipeline, the HealthOmics workflow, IAM roles). After that
+**blueprints**. Kiro runs one command (`bash bin/deploy.sh`) from this folder while the
+AWS CLI is signed in to your account, and it **creates the pipeline's resources inside
+your account** in Singapore (`ap-southeast-1`): it copies the required containers into
+your ECR, builds the alignment image in the cloud (CodeBuild), loads the reference genome
+into your S3, and deploys the CloudFormation stacks (Batch compute, the Step Functions
+pipeline, the HealthOmics workflow, IAM roles). After that
 the pipeline **lives in your AWS account** — the downloaded files were just the source.
 From then on you just upload BAMs to S3 and start runs.
 
@@ -118,11 +125,23 @@ From then on you just upload BAMs to S3 and start runs.
 
 ### Setup and your first run
 
-[SETUP.md](SETUP.md) walks through the whole thing with copy-paste commands: the
-compute-quota check new accounts need, bucket and network, building the workflow
-package, `bootstrap.sh`, uploading BAMs, starting a pair, watching it, and finding the
-results. Kiro can run it for you. Run it in AWS CloudShell (a browser terminal that is
-already signed in) or anywhere with bash and AWS CLI v2.
+[SETUP.md](SETUP.md) has the exact steps: the one-time preparation (install the AWS CLI,
+`aws login`, and the compute-quota increase new accounts need), the prompt to give Kiro,
+and a Kiro prompt for each step of a run. Kiro runs these commands from the repository
+folder, one at a time:
+
+| Step | Command |
+|------|---------|
+| Set up the pipeline (about 30 min, in the background) | `bash bin/deploy.sh`, then `bash bin/status.sh --wait` until it prints `READY` |
+| Upload a pair's BAMs (in the background) | `bash bin/upload.sh --sample NAME --tumor FILE [--tumor2 FILE] --normal FILE`, then `bash bin/upload.sh --sample NAME --wait` until `DONE` |
+| Start the run | `bash bin/start-run.sh --sample NAME --tumor S3_URI [--tumor2 S3_URI] --normal S3_URI --model MODEL` |
+| Check it | `bash bin/run-status.sh RUN_NAME` |
+| Download the results (in the background) | `bash bin/get-results.sh RUN_NAME`, then `bash bin/get-results.sh RUN_NAME --wait` until `DONE` |
+
+Every script is safe to run again, and none of them uses a region other than
+`ap-southeast-1`. Without Kiro, run the same commands in a terminal with bash, AWS CLI v2
+and Python 3 (the scripts are tested on macOS), or in AWS CloudShell, a browser terminal
+that's already signed in (SETUP.md section 3).
 
 ---
 
@@ -153,8 +172,10 @@ no "input folder" parameter.
 
 ## Input options
 
-Start a Step Functions execution with a JSON payload. Inputs may be **unaligned
-BAMs (uBAM)** or **already-aligned BAMs** — each align job auto-detects which:
+Each run is a Step Functions execution with a JSON payload. `bin/start-run.sh` writes
+the payload for you (and keeps a copy in `runs/<run name>.json`); the fields are listed
+here for reference. Inputs may be **unaligned BAMs (uBAM)** or **already-aligned BAMs** —
+each align job auto-detects which:
 
 - **uBAM** → `samtools reset → fastq → minimap2 (lr:hq) → sort` (recipe byte-for-byte
   matching the HealthOmics `minimap2_alignment` step, so results stay concordant).
@@ -328,68 +349,77 @@ On-demand `ap-southeast-1`: c6i.8xlarge $1.568/hr + 1024 GB gp3 (1000 MiB/s, 600
 
 ## Scaling & concurrency — how many pairs run in parallel
 
-The account-level AWS quotas are generous; the practical limits are two **self-imposed
-config caps** you can raise without any AWS support request (up to the account quotas).
+Two kinds of limit decide how many pairs run at once: the pipeline's own caps (stack
+parameters, which you can change yourself) and your account's AWS quotas in Singapore
+(which you raise in the Service Quotas console).
+
+**The pipeline's caps**
 
 | Limit | Where set | Default | What it caps |
 |-------|-----------|---------|--------------|
-| Batch `MaxvCpus` | `cloud37-stack.yaml` param | **128** | Alignment parallelism. Each align job = 32 vCPU; a pair runs 3 in parallel (96 vCPU), so 128 ≈ **one pair aligning at a time**. |
-| Run group `MaxRuns` | `cloud37-prereqs.yaml` param | **8** | How many pairs are in HealthOmics variant calling at once. |
-| Run group `MaxDuration` | `cloud37-prereqs.yaml` param | 4320 (72 h) | Per-run wall-clock safety cap. |
+| Batch `MaxvCpus` | `cloud37-stack.yaml` parameter | **128** | Alignment parallelism. Each align job uses 32 vCPUs and a pair aligns 3 files at once (96 vCPUs), so 128 ≈ **one pair aligning at a time**. |
+| Run group `MaxRuns` | `cloud37-prereqs.yaml` parameter | **8** | Pairs in HealthOmics variant calling at once. |
+| Run group `MaxDurationMinutes` | `cloud37-prereqs.yaml` parameter | 4320 (72 h) | Per-run wall-clock safety cap. |
 
-**Out of the box:** ~1 pair aligning at a time, up to 8 in variant calling — but since
-alignment feeds only ~1 pair per ~4-5 h, in practice ~1 aligning + ~1-2 calling at any
-moment → **~4-5 pairs/day** end-to-end.
+**Your account's quotas** (Singapore; the defaults are what a new account gets)
 
-**To scale up (no AWS quota request needed — the account already allows it):**
+| Quota | Code | New-account default | Needed |
+|-------|------|---------------------|--------|
+| Amazon EC2: Running On-Demand Standard (A, C, D, H, I, M, R, T, Z) instances (vCPUs) | `ec2` `L-1216C47A` | **5** | At least **128** before the first run (SETUP.md section 1, step 5); at least `MaxvCpus` after you raise it. |
+| AWS HealthOmics: Workflows - Maximum concurrent active runs using dynamic run storage | `omics` `L-BE38079A` | 50 | At least `MaxRuns`. |
+| AWS HealthOmics: Workflows - Maximum concurrent tasks per run | `omics` `L-25504C8C` | 25 | Optional. Raising it makes each run faster: the SNV stage has hundreds of short parallel tasks. |
+| AWS CodeBuild: Concurrently running builds for Linux/Medium environment | `codebuild` `L-2DC20C30` | 1 (some new accounts are held at 0) | At least 1, for setup only. |
 
-- Raise Batch `MaxvCpus` (e.g. `128 → 1024`) → ~10 pairs aligning in parallel. The
-  account's EC2 On-Demand vCPU quota is already ~1,152.
-- Raise run group `MaxRuns` (`8 → up to 50`) → up to ~50 pairs variant-calling at once.
-  The account's "concurrent active runs (DYNAMIC storage)" quota is 50.
+To see your current values:
 
-  ```bash
-  # Alignment compute (redeploy the app stack when the Batch queue is idle):
-  aws cloudformation deploy --template-file production/cloud37/cloud37-stack.yaml \
-    --stack-name cloud37 --capabilities CAPABILITY_IAM --region <REGION> \
-    --parameter-overrides <existing params…> MaxvCpus=1024
+```bash
+aws service-quotas get-service-quota --region ap-southeast-1 --service-code ec2 --quota-code L-1216C47A --query Quota.Value
+aws service-quotas get-service-quota --region ap-southeast-1 --service-code omics --quota-code L-BE38079A --query Quota.Value
+```
 
-  # Concurrent variant runs (run group):
-  aws omics update-run-group --id <run-group-id> --max-runs 50 --region <REGION>
-  ```
+**Out of the box** (after the EC2 increase to 128): about 1 pair aligning at a time and up
+to 8 in variant calling. Alignment feeds about 1 pair every 5 hours, so in practice that's
+**about 4-5 pairs a day** end to end.
 
-That range comfortably pushes the full 150-pair campaign through in a few waves over a
-few days.
+**To scale up**, raise the EC2 quota first, then the caps. For example, for about 10 pairs
+aligning at once and up to 50 variant-calling at once, request an EC2 quota of 1,024 and
+run, from the repository folder:
 
-**When you actually need an AWS service-limit (quota) increase** — only beyond the
-account quotas above:
+```bash
+# Alignment: run this when no alignment jobs are running.
+aws cloudformation deploy --region ap-southeast-1 --stack-name cloud37 --template-file production/cloud37/cloud37-stack.yaml --capabilities CAPABILITY_IAM --parameter-overrides MaxvCpus=1024
 
-| Quota | Default (this account) | Raise if… |
-|-------|------------------------|-----------|
-| EC2 On-Demand Standard vCPUs (`ec2` / `L-1216C47A`) | ~1,152 | you want >~12 pairs aligning at once |
-| HealthOmics concurrent active runs (DYNAMIC storage) | 50 | you want >50 pairs variant-calling at once |
-| HealthOmics **tasks per run** | 25 | you want each *individual* run faster (the SNV stage has hundreds of short parallel tasks; raising this is the biggest single-run speedup lever) |
+# Variant calling: concurrent HealthOmics runs.
+aws cloudformation deploy --region ap-southeast-1 --stack-name cloud37-prereqs --template-file production/cloud37/cloud37-prereqs.yaml --capabilities CAPABILITY_IAM --parameter-overrides MaxRuns=50
+```
 
-Request these in the **Service Quotas** console (or via AWS support); increases are
-usually granted quickly.
+`cloudformation deploy` keeps every parameter you don't pass at its current value, and
+re-running `bash bin/deploy.sh` later keeps these new values too. That range pushes a
+150-pair campaign through in a few waves over a few days.
 
 ---
 
 ## Deploying / transferring to a new AWS account
 
 Everything is parameterized — no account-specific values are baked into the templates.
-The one-command path (`bootstrap.sh`) mirrors the 8 `ontresearch/*` containers to your
-ECR (with the repository policy HealthOmics needs to pull them), builds the align image
-(via **CodeBuild**, so no local Docker and any host architecture works), stages the
-reference, and deploys the prereqs + app stacks ([SETUP.md](SETUP.md) has the full
-sequence, including how to find the subnets and security group):
+Setup is two commands, run from the repository folder while the AWS CLI is signed in to
+the target account ([SETUP.md](SETUP.md) sections 2-3 have the Kiro prompt and details):
 
 ```bash
-python3 production/cloud-pipeline/build_workflow_zip.py   # -> cloud37-variant-workflow.zip
-export SUBNETS=subnet-aaa,subnet-bbb,subnet-ccc      # your VPC subnets for Batch
-export SECURITY_GROUP=sg-xxxx                         # your Batch security group
-bash production/cloud37/bootstrap.sh <REGION> <BUCKET> cloud37-variant-workflow.zip
+bash bin/deploy.sh          # prints STARTED within about a minute, or ACTION NEEDED with what to fix
+bash bin/status.sh --wait   # repeat until it prints READY (about 30 minutes) or FAILED
 ```
+
+`bin/deploy.sh` checks the AWS CLI, Python and the sign-in, creates the bucket
+`ont-somatic-<account>-ap-southeast-1`, finds the account's default VPC subnets and
+security group, and saves them in `setup.env`. It then rebuilds the workflow ZIP, checks it
+matches the validated HealthOmics version, and starts `production/cloud37/bootstrap.sh` in
+the background. That mirrors the 8 `ontresearch/*` containers into your ECR (with the
+repository policy HealthOmics needs to pull them), builds the align image and stages the
+reference (all inside **CodeBuild**, so no local Docker is needed), then deploys the
+stacks. To use a different bucket or network, put `BUCKET`, `SUBNETS` and
+`SECURITY_GROUP` in `setup.env` before running `bin/deploy.sh`; the subnets need internet
+access and the security group must allow outbound HTTPS.
 
 Three CloudFormation stacks are created:
 
@@ -451,7 +481,9 @@ aws cloudformation delete-stack --stack-name cloud37-prereqs --region ap-southea
 ```
 
 Then, if you want the data gone too, empty/delete the S3 bucket and the ECR
-repositories (`cloud37-align`, `docker-hub/ontresearch/*`).
+repositories (`cloud37-align`, `docker-hub/ontresearch/*`; about 10 GB of container
+images, roughly $1 a month). Setup creates these outside the stacks, so deleting the
+stacks leaves them in place.
 
 ---
 
